@@ -117,13 +117,30 @@ async function doLogin() {
 
   if (!email || !pass) { showErr(errEl, 'Preencha e-mail e senha'); return; }
   errEl.classList.remove('on');
+  document.getElementById('login-info')?.classList.remove('on');
   btn.innerHTML = '<div class="spin-sm"></div>';
   btn.disabled = true;
 
-  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
   btn.disabled = false;
   btn.innerHTML = 'Entrar <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
-  if (error) showErr(errEl, error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos' : error.message);
+
+  if (error) {
+    if (error.message === 'Invalid login credentials') {
+      showErr(errEl, 'E-mail ou senha incorretos');
+    } else if (error.message.toLowerCase().includes('email not confirmed')) {
+      showErr(errEl, 'E-mail ainda não confirmado. Verifique sua caixa de entrada.');
+    } else {
+      showErr(errEl, error.message);
+    }
+    return;
+  }
+
+  if (data.session) {
+    currentUser = data.session.user;
+    await loadProfessional();
+    showView('view-dash');
+  }
 }
 
 async function doRegister() {
@@ -185,6 +202,12 @@ async function doLogout() {
 }
 
 function showErr(el, msg) {
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('on');
+}
+
+function showInfo(el, msg) {
   if (!el) return;
   el.textContent = msg;
   el.classList.add('on');

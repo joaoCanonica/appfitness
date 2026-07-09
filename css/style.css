@@ -1404,6 +1404,18 @@ input[type=range]:focus::-webkit-slider-thumb {
 }
 .auth-err.on { display: block }
 
+.auth-info {
+  font-size: 13px;
+  color: var(--green);
+  background: var(--g-dim);
+  border: 1px solid var(--g-line);
+  border-radius: var(--r8);
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  display: none;
+}
+.auth-info.on { display: block }
+
 .auth-switch {
   font-size: 13px;
   color: var(--t3);
