@@ -1,0 +1,34 @@
+# Arquivos de Configuração Sensível
+js/supabase.js
+.env
+.env.local
+.env.*.local
+config.local.js
+
+# Dependências
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+.cache/

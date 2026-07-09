@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#080B0F" id="metaThemeColor">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Vitalis — Fitness OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     AUTH — Login / Cadastro do Profissional
+     ══════════════════════════════════════════════════════════ -->
+<div id="view-auth" class="auth-wrap">
+  <div class="auth-logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5L9.5 7H11L6.5 11.5L2 7H3.5L6.5 1.5Z" fill="white" fill-opacity="0.9"/></svg>
+    </div>
+    Vitalis
+  </div>
+
+  <!-- Login -->
+  <div class="auth-card" id="auth-login">
+    <div class="auth-title">Acesso Profissional</div>
+    <div class="auth-sub">Entre com sua conta para continuar</div>
+    <div class="auth-err" id="login-err"></div>
+    <div class="fld"><label>E-mail</label><input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email" inputmode="email"></div>
+    <div class="fld"><label>Senha</label><input type="password" id="login-pass" placeholder="Sua senha" autocomplete="current-password"></div>
+    <button class="btn-p" style="margin-top:8px" onclick="doLogin()" id="btn-login">
+      Entrar
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+    <div class="auth-switch">Não tem conta? <a onclick="showAuthPanel('auth-register')">Criar conta gratuita</a></div>
+  </div>
+
+  <!-- Cadastro -->
+  <div class="auth-card hide" id="auth-register">
+    <div class="auth-title">Criar Conta</div>
+    <div class="auth-sub">Cadastre seu perfil profissional</div>
+    <div class="auth-err" id="reg-err"></div>
+    <div class="fld"><label>Seu Nome</label><input type="text" id="reg-name" placeholder="Nome completo" autocomplete="name"></div>
+    <div class="fld"><label>Academia / Consultório</label><input type="text" id="reg-academy" placeholder="Nome do seu negócio (opcional)"></div>
+    <div class="fld"><label>E-mail</label><input type="email" id="reg-email" placeholder="seu@email.com" autocomplete="email" inputmode="email"></div>
+    <div class="fld"><label>Senha</label><input type="password" id="reg-pass" placeholder="Mínimo 6 caracteres" autocomplete="new-password"></div>
+    <button class="btn-p" style="margin-top:8px" onclick="doRegister()" id="btn-register">
+      Criar Conta
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
+    </button>
+    <div class="auth-switch">Já tem conta? <a onclick="showAuthPanel('auth-login')">Entrar</a></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     DASHBOARD — Painel do Profissional
+     ══════════════════════════════════════════════════════════ -->
+<div id="view-dash" class="dash-wrap">
+
+  <!-- Header fixo do dashboard -->
+  <header class="dash-hdr">
+    <div class="dash-hdr-left">
+      <div class="logo">
+        <div class="logo-mark">
+          <svg viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5L9.5 7H11L6.5 11.5L2 7H3.5L6.5 1.5Z" fill="white" fill-opacity="0.9"/></svg>
+        </div>
+        <span id="dash-academy-name">Vitalis</span>
+      </div>
+    </div>
+    <div class="dash-hdr-right">
+      <span class="dash-user" id="dash-user-name"></span>
+      <button class="btn-icon" onclick="toggleThemeDash()" aria-label="Tema">
+        <svg id="dashThemeIco" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      </button>
+      <button class="btn-icon" onclick="doLogout()" aria-label="Sair">
+        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Tela: Alunos -->
+  <div class="dash-scr on" id="ds-students">
+    <div class="section-hdr">
+      <div>
+        <div class="section-title">Alunos</div>
+      </div>
+      <button class="btn-p" style="width:auto;padding:10px 16px;font-size:13px" onclick="openAddStudent()">
+        + Novo Aluno
+      </button>
+    </div>
+
+    <div class="stats-row" id="dash-stats">
+      <div class="stat-cell">
+        <div class="stat-lbl">Total</div>
+        <div class="stat-val" id="stat-total">0</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-lbl">Ativos</div>
+        <div class="stat-val" id="stat-active">0</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-lbl">Avaliações</div>
+        <div class="stat-val" id="stat-assess">0</div>
+      </div>
+    </div>
+
+    <div class="student-list" id="student-list">
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div class="empty-title">Nenhum aluno ainda</div>
+        <div class="empty-sub">Adicione seu primeiro aluno e envie o link de avaliação.</div>
+        <button class="btn-p" style="width:auto" onclick="openAddStudent()">+ Adicionar Aluno</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tela: Detalhe do Aluno -->
+  <div class="dash-scr" id="ds-student-detail">
+    <div style="padding:16px 20px; border-bottom: 1px solid var(--line); display:flex; align-items:center; gap:12px">
+      <button class="back-btn" onclick="dashNav('ds-students')">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        Alunos
+      </button>
+    </div>
+
+    <div class="detail-hdr">
+      <div class="detail-name" id="detail-name">—</div>
+      <div class="detail-meta" id="detail-meta">—</div>
+    </div>
+
+    <!-- Ações rápidas -->
+    <div style="display:flex;gap:8px;padding:16px 20px;border-bottom:1px solid var(--line)">
+      <button class="btn-sm primary" onclick="openSendLink()" style="flex:2">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        Enviar Link
+      </button>
+      <button class="btn-sm" onclick="openEditStudent()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Editar
+      </button>
+      <button class="btn-sm" onclick="deleteStudent()" style="color:var(--red);border-color:rgba(248,113,113,0.3)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+      </button>
+    </div>
+
+    <!-- Histórico de avaliações -->
+    <div class="section-hdr" style="padding-bottom:12px">
+      <div class="section-title" style="font-size:15px">Avaliações</div>
+      <div class="section-count" id="detail-assess-count">0 registros</div>
+    </div>
+    <div id="detail-assessments" style="padding:0 20px">
+      <div class="empty-state" style="padding:24px 0">
+        <div class="empty-sub">Nenhuma avaliação ainda. Envie o link para o aluno.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tela: Resultado de Avaliação (painel do profissional) -->
+  <div class="dash-scr" id="ds-assessment-view">
+    <div style="padding:16px 20px; border-bottom: 1px solid var(--line); display:flex; align-items:center; justify-content:space-between">
+      <button class="back-btn" onclick="dashNav('ds-student-detail')">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        Aluno
+      </button>
+      <button class="btn-sm" onclick="exportAssessmentPDF()" style="width:auto;padding:6px 12px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        PDF
+      </button>
+    </div>
+
+    <!-- Métricas -->
+    <div class="res-hdr">
+      <div class="res-greeting" id="av-date">—</div>
+      <div class="res-name" id="av-name">—</div>
+      <div class="score-pill good" id="av-badge">—</div>
+    </div>
+
+    <div class="met-grid">
+      <div class="met-cell"><div class="met-label">IMC</div><div class="met-number" id="av-imc">--</div><div class="met-unit" id="av-imc-cat">--</div><span class="met-tag g" id="av-imc-tag">--</span></div>
+      <div class="met-cell"><div class="met-label">TMB</div><div class="met-number" id="av-tmb">--</div><div class="met-unit">kcal/dia</div></div>
+      <div class="met-cell"><div class="met-label">TDEE</div><div class="met-number" id="av-tdee">--</div><div class="met-unit">kcal/dia</div></div>
+      <div class="met-cell"><div class="met-label">Hidratação</div><div class="met-number" id="av-agua">--</div><div class="met-unit">ml/dia</div></div>
+    </div>
+
+    <div class="section-sep"></div>
+
+    <!-- Comparativo com avaliação anterior -->
+    <div id="av-compare-block" class="hide">
+      <div class="section-hdr" style="padding-bottom:8px">
+        <div class="section-title" style="font-size:15px">Evolução</div>
+        <span class="pill-badge g">vs. anterior</span>
+      </div>
+      <div style="margin:0 20px;border-radius:var(--r12);border:1px solid var(--line-2);overflow:hidden;margin-bottom:16px">
+        <div id="av-compare-rows"></div>
+      </div>
+    </div>
+
+    <!-- Análise -->
+    <div class="sec-block" style="margin-top:16px">
+      <div class="sec-line"><span class="sec-icon g"></span><span class="sec-t">Pontos Fortes</span></div>
+    </div>
+    <div class="a-list" id="av-fortes"></div>
+
+    <div class="sec-block">
+      <div class="sec-line"><span class="sec-icon w"></span><span class="sec-t">Pontos de Atenção</span></div>
+    </div>
+    <div class="a-list" id="av-atenc"></div>
+
+    <div class="sec-block">
+      <div class="sec-line"><span class="sec-icon i"></span><span class="sec-t">Recomendações</span></div>
+    </div>
+    <div class="a-list" id="av-rec"></div>
+
+    <div style="height:16px"></div>
+
+    <!-- Treino -->
+    <div class="section-hdr" style="padding-bottom:8px">
+      <div class="section-title" style="font-size:15px">Plano de Treino</div>
+      <button class="btn-sm" onclick="openWorkoutEditor()" style="width:auto;padding:6px 12px;font-size:11px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Editar
+      </button>
+    </div>
+    <div id="av-workout"></div>
+
+    <div style="height:80px"></div>
+  </div>
+
+  <!-- Tela: Editor de Treino -->
+  <div class="dash-scr" id="ds-workout-editor">
+    <div style="padding:16px 20px; border-bottom: 1px solid var(--line); display:flex; align-items:center; justify-content:space-between">
+      <button class="back-btn" onclick="dashNav('ds-assessment-view')">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        Voltar
+      </button>
+      <button class="btn-p" style="width:auto;padding:8px 16px;font-size:13px" onclick="saveWorkoutEdit()">
+        Salvar Treino
+      </button>
+    </div>
+    <div style="padding:16px 20px 8px">
+      <div class="section-title" style="font-size:16px">Editor de Treino</div>
+      <div style="font-size:13px;color:var(--t3);margin-top:4px">Edite os exercícios, séries e repetições.</div>
+    </div>
+    <div id="workout-editor-container"></div>
+    <div style="height:24px"></div>
+  </div>
+
+  <!-- Tela: Configurações -->
+  <div class="dash-scr" id="ds-settings">
+    <div class="section-hdr">
+      <div class="section-title">Configurações</div>
+    </div>
+
+    <div style="margin:0 20px 16px;border-radius:var(--r12);border:1px solid var(--line-2);overflow:hidden">
+      <div class="settings-row" onclick="openProfileEdit()">
+        <div class="settings-ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg></div>
+        <div class="settings-info">
+          <div class="settings-lbl">Perfil Profissional</div>
+          <div class="settings-val" id="settings-profile-val">Nome e academia</div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="settings-row">
+        <div class="settings-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg></div>
+        <div class="settings-info">
+          <div class="settings-lbl">Cor Principal</div>
+          <div class="settings-val">Identidade visual</div>
+        </div>
+        <input type="color" id="color-picker" value="#6366F1" onchange="updatePrimaryColor(this.value)" style="width:28px;height:28px;border-radius:4px;border:none;cursor:pointer;background:none">
+      </div>
+      <div class="settings-row" onclick="toggleThemeDash()">
+        <div class="settings-ico"><svg id="settings-theme-ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></div>
+        <div class="settings-info">
+          <div class="settings-lbl">Tema</div>
+          <div class="settings-val" id="settings-theme-val">Escuro</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin:0 20px;border-radius:var(--r12);border:1px solid var(--line-2);overflow:hidden">
+      <div class="settings-row" onclick="doLogout()" style="color:var(--red)">
+        <div class="settings-ico"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></div>
+        <div class="settings-info">
+          <div class="settings-lbl" style="color:var(--red)">Sair da Conta</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align:center;padding:24px;font-size:11px;color:var(--t3)">Vitalis v2.0 — Fitness OS</div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <button class="nav-tab active" id="tab-students" onclick="switchTab('students')">
+      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Alunos
+    </button>
+    <button class="nav-tab" id="tab-settings" onclick="switchTab('settings')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Ajustes
+    </button>
+  </nav>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     AVALIAÇÃO — Tela do Aluno (via link ou acesso direto)
+     ══════════════════════════════════════════════════════════ -->
+<div id="view-assessment" class="hide">
+
+  <header class="hdr" id="assess-header">
+    <div class="logo">
+      <div class="logo-mark" id="assess-logo-mark">
+        <svg viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5L9.5 7H11L6.5 11.5L2 7H3.5L6.5 1.5Z" fill="white" fill-opacity="0.9"/></svg>
+      </div>
+      <span id="assess-brand-name">Vitalis</span>
+    </div>
+    <button class="theme-btn" id="themeBtn" aria-label="Alternar tema">
+      <svg id="themeIco" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </header>
+
+  <div class="main">
+
+    <!-- HERO -->
+    <section class="scr on" id="s-hero">
+      <div class="hero">
+        <div class="hero-eyebrow"><span class="hero-eyebrow-dot"></span>Avaliação Fitness</div>
+        <h1>Avalie seu<br>corpo com <em>precisão.</em></h1>
+        <p class="hero-sub">Responda as etapas abaixo. Seu profissional terá acesso completo ao diagnóstico.</p>
+        <div class="hero-stats">
+          <div class="hero-stat"><div class="hero-stat-val">2min</div><div class="hero-stat-lbl">Para concluir</div></div>
+          <div class="hero-divider"></div>
+          <div class="hero-stat"><div class="hero-stat-val">9</div><div class="hero-stat-lbl">Etapas</div></div>
+          <div class="hero-divider"></div>
+          <div class="hero-stat"><div class="hero-stat-val">100%</div><div class="hero-stat-lbl">Seguro</div></div>
+        </div>
+        <button class="btn-p" onclick="startForm()">
+          Iniciar Avaliação
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- FORM -->
+    <section class="scr" id="s-form">
+      <div class="prg-wrap">
+        <div class="prg-top">
+          <span class="prg-lbl" id="prgLbl">Etapa 1 de 9</span>
+          <span class="prg-pct" id="prgPct">11%</span>
+        </div>
+        <div class="prg-track"><div class="prg-fill" id="prgFill" style="width:11%"></div></div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="stp" id="st1">
+        <div class="stp-eyebrow">Etapa 1</div>
+        <div class="stp-t">Dados Básicos</div>
+        <div class="stp-s">Informações para calcular suas métricas corporais.</div>
+        <div class="fld"><label>Nome Completo</label><input type="text" id="f-nome" placeholder="Seu nome" autocomplete="name"></div>
+        <div class="frow">
+          <div class="fld"><label>Idade</label><input type="number" id="f-idade" placeholder="25" min="10" max="99" inputmode="numeric"></div>
+          <div class="fld"><label>Gênero</label>
+            <select id="f-genero">
+              <option value="">Selecione</option>
+              <option value="masculino">Masculino</option>
+              <option value="feminino">Feminino</option>
+              <option value="outro">Outro</option>
+            </select>
+          </div>
+        </div>
+        <div class="frow">
+          <div class="fld"><label>Altura (cm)</label><input type="number" id="f-altura" placeholder="170" min="100" max="250" inputmode="numeric"></div>
+          <div class="fld"><label>Peso (kg)</label><input type="number" id="f-peso" placeholder="70" min="30" max="300" inputmode="decimal"></div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="stp hide" id="st2">
+        <div class="stp-eyebrow">Etapa 2</div>
+        <div class="stp-t">Seus Objetivos</div>
+        <div class="stp-s">Qual é o seu principal foco agora?</div>
+        <span class="opt-lbl">Objetivo Principal</span>
+        <div class="og" id="og-obj">
+          <button class="ob" data-v="perder-peso"><span class="oi">↓</span><span class="ol">Perder Peso</span></button>
+          <button class="ob" data-v="ganhar-massa"><span class="oi">↑</span><span class="ol">Ganhar Massa</span></button>
+          <button class="ob" data-v="resistencia"><span class="oi">◎</span><span class="ol">Resistência</span></button>
+          <button class="ob" data-v="fitness-geral"><span class="oi">◈</span><span class="ol">Fitness Geral</span></button>
+        </div>
+        <div class="frow">
+          <div class="fld"><label>Peso Desejado (kg)</label><input type="number" id="f-pdej" placeholder="65" inputmode="decimal"></div>
+          <div class="fld"><label>Prazo</label>
+            <select id="f-prazo">
+              <option value="">Selecione</option>
+              <option value="1mes">1 Mês</option>
+              <option value="3meses">3 Meses</option>
+              <option value="6meses">6 Meses</option>
+              <option value="1ano">1 Ano</option>
+            </select>
+          </div>
+        </div>
+        <div class="fld"><label>Objetivo Curto Prazo (1–3 meses)</label><input type="text" id="f-obj-curto" placeholder="Ex: Perder 5kg"></div>
+        <div class="fld"><label>Objetivo Longo Prazo (1 ano+)</label><input type="text" id="f-obj-longo" placeholder="Ex: Correr 10km"></div>
+        <div class="fld"><label>Motivação</label><textarea id="f-mot" placeholder="O que te motiva a treinar?"></textarea></div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="stp hide" id="st3">
+        <div class="stp-eyebrow">Etapa 3</div>
+        <div class="stp-t">Histórico de Treino</div>
+        <div class="stp-s">Isso calibra a intensidade ideal para você.</div>
+        <span class="opt-lbl">Experiência</span>
+        <div class="og og-3" id="og-niv">
+          <button class="ob" data-v="iniciante"><span class="oi">○</span><span class="ol">Iniciante</span></button>
+          <button class="ob" data-v="intermediario"><span class="oi">◑</span><span class="ol">Intermediário</span></button>
+          <button class="ob" data-v="avancado"><span class="oi">●</span><span class="ol">Avançado</span></button>
+        </div>
+        <div class="rng-wrap">
+          <div class="rng-top"><label>Dias de treino por semana</label><span class="rng-val" id="rv-dias">3 dias</span></div>
+          <input type="range" id="f-dias" min="1" max="7" value="3" step="1" oninput="document.getElementById('rv-dias').textContent=this.value+(this.value=='1'?' dia':' dias')">
+        </div>
+        <div class="tgl-row" onclick="tgl('t-pers')"><span class="tgl-lbl">Tenho personal trainer</span><div class="tgl" id="t-pers"></div></div>
+        <div class="tgl-row" onclick="tgl('t-nutri')"><span class="tgl-lbl">Tenho nutricionista</span><div class="tgl" id="t-nutri"></div></div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="stp hide" id="st4">
+        <div class="stp-eyebrow">Etapa 4</div>
+        <div class="stp-t">Sua Saúde</div>
+        <div class="stp-s">Informações para garantir um treino seguro e adequado.</div>
+        <div class="tag-wrap"><label>Condições de Saúde</label>
+          <div class="tag-box" id="tb-doencas"><input class="tag-in" placeholder="Ex: Diabetes — Enter para adicionar" onkeydown="addTag(event,'tb-doencas')"></div>
+        </div>
+        <div class="tag-wrap"><label>Lesões</label>
+          <div class="tag-box" id="tb-lesoes"><input class="tag-in" placeholder="Ex: Joelho direito — Enter para adicionar" onkeydown="addTag(event,'tb-lesoes')"></div>
+        </div>
+        <div class="tag-wrap"><label>Medicamentos</label>
+          <div class="tag-box" id="tb-meds"><input class="tag-in" placeholder="Ex: Metformina — Enter para adicionar" onkeydown="addTag(event,'tb-meds')"></div>
+        </div>
+      </div>
+
+      <!-- Step 5 — ANAMNESE -->
+      <div class="stp hide" id="st5">
+        <div class="stp-eyebrow">Etapa 5</div>
+        <div class="stp-t">Anamnese</div>
+        <div class="stp-s">Histórico clínico detalhado para seu profissional.</div>
+
+        <div class="fld"><label>Pressão Arterial (se souber)</label><input type="text" id="f-pressao" placeholder="Ex: 120/80"></div>
+        <div class="fld"><label>Horas de trabalho sentado por dia</label>
+          <select id="f-sedentario">
+            <option value="">Selecione</option>
+            <option value="0-2">Menos de 2h</option>
+            <option value="2-4">2 a 4h</option>
+            <option value="4-6">4 a 6h</option>
+            <option value="6+">Mais de 6h</option>
+          </select>
+        </div>
+        <div class="tgl-row" onclick="tgl('t-cardio')"><span class="tgl-lbl">Histórico familiar de doença cardiovascular</span><div class="tgl" id="t-cardio"></div></div>
+        <div class="tgl-row" onclick="tgl('t-fuma')"><span class="tgl-lbl">Fumante</span><div class="tgl" id="t-fuma"></div></div>
+        <div class="tgl-row" onclick="tgl('t-alcool')"><span class="tgl-lbl">Consome álcool regularmente</span><div class="tgl" id="t-alcool"></div></div>
+        <div class="tag-wrap" style="margin-top:16px"><label>Outros esportes / atividades</label>
+          <div class="tag-box" id="tb-esportes"><input class="tag-in" placeholder="Ex: Natação — Enter para adicionar" onkeydown="addTag(event,'tb-esportes')"></div>
+        </div>
+        <div class="tag-wrap"><label>Cirurgias anteriores</label>
+          <div class="tag-box" id="tb-cirurgias"><input class="tag-in" placeholder="Ex: Joelho 2019 — Enter para adicionar" onkeydown="addTag(event,'tb-cirurgias')"></div>
+        </div>
+
+        <span class="opt-lbl" style="margin-top:8px;display:block">Nível de dor atual (0 = sem dor)</span>
+        <div class="pain-scale" id="pain-scale">
+          <button class="pain-btn sel" data-pain="0">0</button>
+          <button class="pain-btn" data-pain="1">1</button>
+          <button class="pain-btn" data-pain="2">2</button>
+          <button class="pain-btn" data-pain="3">3</button>
+          <button class="pain-btn" data-pain="4">4</button>
+          <button class="pain-btn" data-pain="5">5</button>
+          <button class="pain-btn" data-pain="6">6</button>
+          <button class="pain-btn" data-pain="7">7</button>
+          <button class="pain-btn" data-pain="8">8</button>
+          <button class="pain-btn" data-pain="9">9</button>
+          <button class="pain-btn" data-pain="10">10</button>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="stp hide" id="st6">
+        <div class="stp-eyebrow">Etapa 6</div>
+        <div class="stp-t">Hábitos de Vida</div>
+        <div class="stp-s">Hábitos impactam diretamente seus resultados.</div>
+        <span class="opt-lbl">Qualidade do Sono</span>
+        <div class="oi-wrap" id="ow-sono">
+          <button class="ob" data-v="ruim"><span class="ol">Ruim</span></button>
+          <button class="ob" data-v="razoavel"><span class="ol">Razoável</span></button>
+          <button class="ob" data-v="boa"><span class="ol">Boa</span></button>
+          <button class="ob" data-v="excelente"><span class="ol">Excelente</span></button>
+        </div>
+        <div class="rng-wrap">
+          <div class="rng-top"><label>Horas de sono por noite</label><span class="rng-val" id="rv-sono">7h</span></div>
+          <input type="range" id="f-sono" min="4" max="12" value="7" step="1" oninput="document.getElementById('rv-sono').textContent=this.value+'h'">
+        </div>
+        <span class="opt-lbl">Nível de Estresse</span>
+        <div class="oi-wrap" id="ow-str">
+          <button class="ob" data-v="baixo"><span class="ol">Baixo</span></button>
+          <button class="ob" data-v="moderado"><span class="ol">Moderado</span></button>
+          <button class="ob" data-v="alto"><span class="ol">Alto</span></button>
+          <button class="ob" data-v="muito-alto"><span class="ol">Muito Alto</span></button>
+        </div>
+        <div class="rng-wrap">
+          <div class="rng-top"><label>Litros de água por dia</label><span class="rng-val" id="rv-agua">2.0L</span></div>
+          <input type="range" id="f-agua" min="0.5" max="5" value="2" step="0.5" oninput="document.getElementById('rv-agua').textContent=parseFloat(this.value).toFixed(1)+'L'">
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="stp hide" id="st7">
+        <div class="stp-eyebrow">Etapa 7</div>
+        <div class="stp-t">Alimentação</div>
+        <div class="stp-s">Para calcular suas necessidades calóricas com precisão.</div>
+        <span class="opt-lbl">Frutas e Verduras</span>
+        <div class="oi-wrap" id="ow-frut">
+          <button class="ob" data-v="nunca"><span class="ol">Nunca</span></button>
+          <button class="ob" data-v="raramente"><span class="ol">Raramente</span></button>
+          <button class="ob" data-v="as-vezes"><span class="ol">Às vezes</span></button>
+          <button class="ob sel" data-v="diario"><span class="ol">Diário</span></button>
+        </div>
+        <span class="opt-lbl">Industrializados / Doces</span>
+        <div class="oi-wrap" id="ow-ind">
+          <button class="ob sel" data-v="nunca"><span class="ol">Nunca</span></button>
+          <button class="ob" data-v="raramente"><span class="ol">Raramente</span></button>
+          <button class="ob" data-v="as-vezes"><span class="ol">Às vezes</span></button>
+          <button class="ob" data-v="diario"><span class="ol">Diário</span></button>
+        </div>
+        <div class="tag-wrap"><label>Alergias / Intolerâncias</label>
+          <div class="tag-box" id="tb-aler"><input class="tag-in" placeholder="Ex: Lactose — Enter para adicionar" onkeydown="addTag(event,'tb-aler')"></div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="stp hide" id="st8">
+        <div class="stp-eyebrow">Etapa 8</div>
+        <div class="stp-t">Disponibilidade</div>
+        <div class="stp-s">Um plano que caiba na sua rotina real.</div>
+        <span class="opt-lbl">Dias Disponíveis</span>
+        <div class="days" id="days-sel">
+          <button class="day-btn" data-d="Seg">Seg</button>
+          <button class="day-btn" data-d="Ter">Ter</button>
+          <button class="day-btn" data-d="Qua">Qua</button>
+          <button class="day-btn" data-d="Qui">Qui</button>
+          <button class="day-btn" data-d="Sex">Sex</button>
+          <button class="day-btn" data-d="Sáb">Sáb</button>
+          <button class="day-btn" data-d="Dom">Dom</button>
+        </div>
+        <span class="opt-lbl">Tempo por Sessão</span>
+        <div class="oi-wrap" id="ow-tmp">
+          <button class="ob" data-v="30"><span class="ol">30 min</span></button>
+          <button class="ob" data-v="45"><span class="ol">45 min</span></button>
+          <button class="ob sel" data-v="60"><span class="ol">60 min</span></button>
+          <button class="ob" data-v="90"><span class="ol">90 min</span></button>
+        </div>
+        <span class="opt-lbl">Local de Treino</span>
+        <div class="og" id="og-loc">
+          <button class="ob" data-v="casa"><span class="oi">⌂</span><span class="ol">Casa</span></button>
+          <button class="ob sel" data-v="academia"><span class="oi">◫</span><span class="ol">Academia</span></button>
+          <button class="ob" data-v="ar-livre"><span class="oi">◯</span><span class="ol">Ar Livre</span></button>
+          <button class="ob" data-v="misto"><span class="oi">◈</span><span class="ol">Misto</span></button>
+        </div>
+      </div>
+
+      <!-- Step 9: Confirmação -->
+      <div class="stp hide" id="st9"></div>
+
+      <div class="nav-space"></div>
+      <div class="nav" id="formNav">
+        <button class="btn-s" onclick="prevStp()" id="btnVoltar">← Voltar</button>
+        <button class="btn-p" onclick="nextStp()" id="btnProx">
+          Próximo
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- LOADING -->
+    <section class="scr" id="s-load">
+      <div class="load-scr">
+        <div class="load-ring">
+          <div class="load-ring-track"></div>
+          <div class="load-ring-spin"></div>
+          <div class="load-ring-spin-2"></div>
+        </div>
+        <div class="load-t">Analisando Perfil</div>
+        <div class="load-s">Salvando avaliação com segurança</div>
+        <div class="load-steps">
+          <div class="ls act" id="ls1"><div class="ls-icon"></div>Calculando métricas</div>
+          <div class="ls" id="ls2"><div class="ls-icon"></div>Analisando perfil</div>
+          <div class="ls" id="ls3"><div class="ls-icon"></div>Gerando plano de treino</div>
+          <div class="ls" id="ls4"><div class="ls-icon"></div>Salvando no sistema</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESULTS (aluno) -->
+    <section class="scr" id="s-res">
+      <div class="res-hdr">
+        <div class="res-greeting">Avaliação Concluída</div>
+        <div class="res-name" id="r-nm">Usuário</div>
+        <div class="score-pill good" id="r-badge">Peso Saudável</div>
+      </div>
+      <div class="met-grid">
+        <div class="met-cell"><div class="met-label">IMC</div><div class="met-number" id="r-imc">--</div><div class="met-unit" id="r-imc-cat">--</div><span class="met-tag g" id="r-imc-bg">Normal</span></div>
+        <div class="met-cell"><div class="met-label">TMB</div><div class="met-number" id="r-tmb">--</div><div class="met-unit">kcal / dia</div></div>
+        <div class="met-cell"><div class="met-label">TDEE</div><div class="met-number" id="r-tdee">--</div><div class="met-unit">kcal / dia</div></div>
+        <div class="met-cell"><div class="met-label">Hidratação</div><div class="met-number" id="r-agua">--</div><div class="met-unit">ml / dia</div></div>
+      </div>
+      <div class="section-sep"></div>
+      <div class="sec-block" style="margin-top:20px"><div class="sec-line"><span class="sec-icon g"></span><span class="sec-t">Pontos Fortes</span></div></div>
+      <div class="a-list" id="r-fortes"></div>
+      <div class="sec-block"><div class="sec-line"><span class="sec-icon w"></span><span class="sec-t">Pontos de Atenção</span></div></div>
+      <div class="a-list" id="r-atenc"></div>
+      <div class="sec-block"><div class="sec-line"><span class="sec-icon i"></span><span class="sec-t">Recomendações</span></div></div>
+      <div class="a-list" id="r-rec"></div>
+      <div class="nav-space"></div>
+      <div class="nav">
+        <button class="btn-s" onclick="show('s-workout')">Ver Treino</button>
+        <button class="btn-p" onclick="show('s-export')">
+          Exportar
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- WORKOUT (aluno) -->
+    <section class="scr" id="s-workout">
+      <div class="stp" style="margin-bottom:16px">
+        <div class="stp-eyebrow">Plano Personalizado</div>
+        <div class="stp-t">Seu Treino</div>
+        <div class="stp-s">Adaptado ao seu perfil, disponibilidade e objetivo.</div>
+      </div>
+      <div id="wk-container"></div>
+      <div class="nav-space"></div>
+      <div class="nav">
+        <button class="btn-s" onclick="show('s-res')">← Resultados</button>
+        <button class="btn-p" onclick="show('s-export')">
+          Exportar PDF
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- EXPORT (aluno) -->
+    <section class="scr" id="s-export">
+      <div class="stp" style="margin-bottom:20px">
+        <div class="stp-eyebrow">Compartilhar</div>
+        <div class="stp-t">Exportar Relatório</div>
+        <div class="stp-s">Baixe ou compartilhe seu diagnóstico completo.</div>
+      </div>
+      <div class="act-list">
+        <div class="act-row" onclick="exportPDF()">
+          <div class="act-ico">↓</div>
+          <div class="act-inf"><div class="act-t">Baixar PDF Completo</div><div class="act-s">Diagnóstico, métricas e plano de treino</div></div>
+          <div class="act-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+        </div>
+        <div class="act-row" onclick="shareWA()">
+          <div class="act-ico">↗</div>
+          <div class="act-inf"><div class="act-t">Enviar pelo WhatsApp</div><div class="act-s">Resumo completo para seu personal trainer</div></div>
+          <div class="act-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+        </div>
+      </div>
+      <div class="nav-space"></div>
+      <div class="nav">
+        <button class="btn-s" onclick="show('s-workout')">← Treino</button>
+        <button class="btn-p" onclick="resetAssessment()">Nova Avaliação</button>
+      </div>
+    </section>
+
+  </div><!-- /main -->
+</div><!-- /view-assessment -->
+
+<!-- ══════════════════════════════════════════════════════════
+     MODAIS
+     ══════════════════════════════════════════════════════════ -->
+
+<!-- Modal: Adicionar/Editar Aluno -->
+<div class="modal-overlay" id="modal-student" onclick="closeModalStudent(event)">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-title" id="modal-student-title">Novo Aluno</div>
+    <div class="modal-sub">Preencha os dados do aluno.</div>
+    <div class="modal-body">
+      <div class="fld"><label>Nome Completo</label><input type="text" id="ms-name" placeholder="Nome do aluno" autocomplete="off"></div>
+      <div class="frow">
+        <div class="fld"><label>E-mail</label><input type="email" id="ms-email" placeholder="email@exemplo.com" inputmode="email"></div>
+        <div class="fld"><label>Telefone</label><input type="tel" id="ms-phone" placeholder="(00) 00000-0000" inputmode="tel"></div>
+      </div>
+      <div class="fld"><label>Data de Nascimento</label><input type="date" id="ms-birth"></div>
+      <div class="fld"><label>Observações</label><textarea id="ms-notes" placeholder="Anotações internas..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-s" onclick="closeModal('modal-student')">Cancelar</button>
+      <button class="btn-p" onclick="saveStudent()" id="btn-save-student">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Enviar Link -->
+<div class="modal-overlay" id="modal-link" onclick="closeModalLink(event)">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-title">Enviar Link de Avaliação</div>
+    <div class="modal-sub" id="modal-link-sub">Gere e envie o link para o aluno preencher.</div>
+    <div class="link-card" id="link-card" style="display:none">
+      <div class="link-label">Link Gerado</div>
+      <div class="link-url" id="link-url-display"></div>
+      <div class="link-actions">
+        <button class="btn-sm" onclick="copyLink()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copiar
+        </button>
+        <button class="btn-sm primary" onclick="sendLinkWA()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.27a16 16 0 0 0 6.29 6.29l1.15-1.15a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          WhatsApp
+        </button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-s" onclick="closeModal('modal-link')">Fechar</button>
+      <button class="btn-p" onclick="generateLink()" id="btn-gen-link">Gerar Link</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar Perfil -->
+<div class="modal-overlay" id="modal-profile" onclick="closeModalProfile(event)">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-title">Perfil Profissional</div>
+    <div class="modal-sub">Suas informações aparecem nas avaliações.</div>
+    <div class="modal-body">
+      <div class="fld"><label>Seu Nome</label><input type="text" id="mp-name" placeholder="Nome completo"></div>
+      <div class="fld"><label>Academia / Consultório</label><input type="text" id="mp-academy" placeholder="Nome do seu negócio"></div>
+      <div class="fld"><label>Telefone</label><input type="tel" id="mp-phone" placeholder="(00) 00000-0000" inputmode="tel"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-s" onclick="closeModal('modal-profile')">Cancelar</button>
+      <button class="btn-p" onclick="saveProfile()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
