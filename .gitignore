@@ -1,5 +1,4 @@
 # Arquivos de Configuração Sensível
-js/supabase.js
 .env
 .env.local
 .env.*.local
