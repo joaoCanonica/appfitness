@@ -25,6 +25,18 @@ const TOTAL = 9;
 
   // Verifica sessão do profissional
   const { data: { session } } = await sb.auth.getSession();
+
+  // Limpa erros de auth na URL (link expirado, etc)
+  if (window.location.hash && window.location.hash.includes('error=')) {
+    history.replaceState(null, '', window.location.pathname);
+    showView('view-auth');
+    const errEl = document.getElementById('login-err');
+    if (errEl) {
+      errEl.textContent = 'O link de confirmação expirou. Faça login com seu e-mail e senha.';
+      errEl.classList.add('on');
+    }
+  }
+
   if (session) {
     currentUser = session.user;
     await loadProfessional();
@@ -129,7 +141,14 @@ async function doRegister() {
   btn.innerHTML = '<div class="spin-sm"></div>';
   btn.disabled = true;
 
-  const { data, error } = await sb.auth.signUp({ email, password: pass });
+  const { data, error } = await sb.auth.signUp({
+    email,
+    password: pass,
+    options: {
+      emailRedirectTo: window.location.origin,
+      data: { name, academy_name: academy || null }
+    }
+  });
   if (error) {
     btn.disabled = false;
     btn.innerHTML = 'Criar Conta';
@@ -149,7 +168,14 @@ async function doRegister() {
 
   btn.disabled = false;
   btn.innerHTML = 'Criar Conta';
-  toast('Conta criada! Verifique seu e-mail se necessário.');
+
+  if (data.user && data.session) {
+    // Usuário já está logado (confirmação desativada no Supabase)
+    toast('Conta criada com sucesso!');
+  } else {
+    // Confirmação de e-mail ativada
+    showErr(errEl, 'Conta criada! Clique no link enviado para ' + email + ' para ativar.');
+  }
 }
 
 async function doLogout() {
@@ -1438,6 +1464,14 @@ window.exportAssessmentPDF = exportAssessmentPDF;
 window.shareWA         = shareWA;
 window.resetAssessment = resetAssessment;
 window.toggleWD        = toggleWD;
+function togglePass(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+  const isPass = inp.type === 'password';
+  inp.type = isPass ? 'text' : 'password';
+  btn.style.color = isPass ? 'var(--a2)' : 'var(--t3)';
+}
+window.togglePass = togglePass;
 window.doLogin         = doLogin;
 window.doRegister      = doRegister;
 window.doLogout        = doLogout;

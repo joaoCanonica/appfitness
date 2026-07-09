@@ -33,7 +33,15 @@
     <div class="auth-sub">Entre com sua conta para continuar</div>
     <div class="auth-err" id="login-err"></div>
     <div class="fld"><label>E-mail</label><input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email" inputmode="email"></div>
-    <div class="fld"><label>Senha</label><input type="password" id="login-pass" placeholder="Sua senha" autocomplete="current-password"></div>
+    <div class="fld">
+      <label>Senha</label>
+      <div style="position:relative">
+        <input type="password" id="login-pass" placeholder="Sua senha" autocomplete="current-password" style="padding-right:44px">
+        <button type="button" onclick="togglePass('login-pass',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--t3);padding:0;display:flex;align-items:center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
     <button class="btn-p" style="margin-top:8px" onclick="doLogin()" id="btn-login">
       Entrar
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -49,7 +57,15 @@
     <div class="fld"><label>Seu Nome</label><input type="text" id="reg-name" placeholder="Nome completo" autocomplete="name"></div>
     <div class="fld"><label>Academia / Consultório</label><input type="text" id="reg-academy" placeholder="Nome do seu negócio (opcional)"></div>
     <div class="fld"><label>E-mail</label><input type="email" id="reg-email" placeholder="seu@email.com" autocomplete="email" inputmode="email"></div>
-    <div class="fld"><label>Senha</label><input type="password" id="reg-pass" placeholder="Mínimo 6 caracteres" autocomplete="new-password"></div>
+    <div class="fld">
+      <label>Senha</label>
+      <div style="position:relative">
+        <input type="password" id="reg-pass" placeholder="Mínimo 6 caracteres" autocomplete="new-password" style="padding-right:44px">
+        <button type="button" onclick="togglePass('reg-pass',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--t3);padding:0;display:flex;align-items:center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
     <button class="btn-p" style="margin-top:8px" onclick="doRegister()" id="btn-register">
       Criar Conta
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
