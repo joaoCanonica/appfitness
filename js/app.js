@@ -16,6 +16,11 @@ const TOTAL = 9;
 (async function init() {
   initTheme();
 
+  // Esconde todas as views imediatamente — evita flash de tela errada durante carregamento
+  document.getElementById('view-auth')?.classList.add('hide');
+  document.getElementById('view-dash')?.classList.add('hide');
+  document.getElementById('view-assessment')?.classList.add('hide');
+
   // Se aluno acessando via link
   if (LINK_TOKEN) {
     await loadBrandFromToken();
