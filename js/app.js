@@ -727,18 +727,26 @@ function switchTab(tab) {
 async function loadBrandFromToken() {
   if (!LINK_TOKEN) return;
   const { data: link } = await sb.from('assessment_links')
-    .select('professional_id')
+    .select('professional_id, student_id')
     .eq('token', LINK_TOKEN)
     .eq('used', false)
     .gt('expires_at', new Date().toISOString())
     .single();
 
   if (!link) {
-    toast('Link inválido ou expirado');
-    document.querySelector('#s-hero .hero-sub').textContent = 'Este link expirou ou já foi utilizado.';
-    document.querySelector('#s-hero .btn-p').style.display = 'none';
+    const hero = document.getElementById('s-hero');
+    if (hero) {
+      const sub = hero.querySelector('.hero-sub');
+      const btn = hero.querySelector('.btn-p');
+      if (sub) sub.textContent = 'Este link expirou ou já foi utilizado. Solicite um novo link ao seu profissional.';
+      if (btn) btn.style.display = 'none';
+    }
     return;
   }
+
+  // Guarda globalmente para uso no saveAssessmentToSupabase
+  window._linkProfId    = link.professional_id;
+  window._linkStudentId = link.student_id;
 
   const { data: prof } = await sb.from('professionals')
     .select('name, academy_name, primary_color')
@@ -750,8 +758,6 @@ async function loadBrandFromToken() {
     if (bn) bn.textContent = prof.academy_name || prof.name || 'Vitalis';
     if (prof.primary_color) applyPrimaryColor(prof.primary_color);
   }
-
-  window._linkProfId = link.professional_id;
 }
 
 // ── FORMULÁRIO DO ALUNO ───────────────────────────────────────
@@ -796,17 +802,22 @@ try {
 
 // Tag input
 function addTag(e, cid) {
-  if (e.key !== 'Enter' && e.key !== ',') return;
-  e.preventDefault();
-  const val = e.target.value.trim().replace(/,/g,'');
-  if (!val) return;
+  if (e && e.key && e.key !== 'Enter' && e.key !== ',') return;
+  if (e && e.preventDefault) e.preventDefault();
   const box = document.getElementById(cid);
+  if (!box) return;
+  const inp = box.querySelector('.tag-in');
+  if (!inp) return;
+  const val = inp.value.trim().replace(/,/g, '');
+  if (!val) return;
   const t = document.createElement('div');
   t.className = 'tag-item';
-  t.innerHTML = `<span>${escHtml(val)}</span><button class="tag-rm" onclick="this.parentElement.remove()" aria-label="Remover">×</button>`;
-  box.insertBefore(t, e.target);
-  e.target.value = '';
+  t.innerHTML = `<span>${escHtml(val)}</span><button class="tag-rm" onclick="this.parentElement.remove()" type="button" aria-label="Remover">×</button>`;
+  box.insertBefore(t, inp);
+  inp.value = '';
+  inp.focus();
 }
+window.addTag = addTag;
 try {
   document.querySelectorAll('.tag-box').forEach(b => {
     b.addEventListener('click', function(e) { if (e.target === this) this.querySelector('.tag-in').focus(); });
@@ -1158,17 +1169,17 @@ function toggleWD(id) {
 async function saveAssessmentToSupabase(d, imc, tmb, tdee, aguaML, workoutPlan) {
   if (!LINK_TOKEN) return;
 
-  // Busca student_id e professional_id pelo token
-  const { data: link } = await sb.from('assessment_links')
-    .select('professional_id, student_id')
-    .eq('token', LINK_TOKEN)
-    .single();
+  const profId    = window._linkProfId;
+  const studentId = window._linkStudentId;
 
-  if (!link) return;
+  if (!profId || !studentId) {
+    console.error('saveAssessmentToSupabase: profId ou studentId ausente');
+    return;
+  }
 
   const payload = {
-    professional_id:  link.professional_id,
-    student_id:       link.student_id,
+    professional_id:  profId,
+    student_id:       studentId,
     link_token:       LINK_TOKEN,
     nome: d.nome, idade: d.idade, genero: d.genero, altura: d.altura, peso: d.peso,
     objetivo: d.obj, peso_desejado: d.pesoDej || null, prazo: d.prazo,
@@ -1192,14 +1203,20 @@ async function saveAssessmentToSupabase(d, imc, tmb, tdee, aguaML, workoutPlan) 
     imc_categoria: imcStatus(imc).lbl,
   };
 
-  const { data: assessment, error } = await sb.from('assessments').insert(payload).select().single();
-  if (error || !assessment) { console.error('Erro ao salvar avaliação:', error); return; }
+  const { data: assessment, error } = await sb.from('assessments')
+    .insert(payload)
+    .select()
+    .single();
 
-  // Salva plano de treino
+  if (error || !assessment) {
+    console.error('Erro ao salvar avaliação:', error);
+    return;
+  }
+
   await sb.from('workout_plans').insert({
-    assessment_id:  assessment.id,
-    professional_id: link.professional_id,
-    student_id:      link.student_id,
+    assessment_id:   assessment.id,
+    professional_id: profId,
+    student_id:      studentId,
     plan:            workoutPlan,
     edited_manually: false,
   });

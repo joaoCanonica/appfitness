@@ -453,13 +453,25 @@
         <div class="stp-t">Sua Saúde</div>
         <div class="stp-s">Informações para garantir um treino seguro e adequado.</div>
         <div class="tag-wrap"><label>Condições de Saúde</label>
-          <div class="tag-box" id="tb-doencas"><input class="tag-in" placeholder="Ex: Diabetes — Enter para adicionar" onkeydown="addTag(event,'tb-doencas')"></div>
+          <!-- tb-doencas -->
+<div class="tag-box" id="tb-doencas">
+  <input class="tag-in" placeholder="Ex: Diabetes" onkeydown="addTag(event,'tb-doencas')">
+  <button type="button" class="tag-add-btn" onclick="addTag(null,'tb-doencas')" aria-label="Adicionar">+</button>
+</div>
         </div>
         <div class="tag-wrap"><label>Lesões</label>
-          <div class="tag-box" id="tb-lesoes"><input class="tag-in" placeholder="Ex: Joelho direito — Enter para adicionar" onkeydown="addTag(event,'tb-lesoes')"></div>
+          <!-- tb-lesoes -->
+<div class="tag-box" id="tb-lesoes">
+  <input class="tag-in" placeholder="Ex: Joelho direito" onkeydown="addTag(event,'tb-lesoes')">
+  <button type="button" class="tag-add-btn" onclick="addTag(null,'tb-lesoes')" aria-label="Adicionar">+</button>
+</div>
         </div>
         <div class="tag-wrap"><label>Medicamentos</label>
-          <div class="tag-box" id="tb-meds"><input class="tag-in" placeholder="Ex: Metformina — Enter para adicionar" onkeydown="addTag(event,'tb-meds')"></div>
+          <!-- tb-meds -->
+<div class="tag-box" id="tb-meds">
+  <input class="tag-in" placeholder="Ex: Metformina" onkeydown="addTag(event,'tb-meds')">
+  <button type="button" class="tag-add-btn" onclick="addTag(null,'tb-meds')" aria-label="Adicionar">+</button>
+</div>
         </div>
       </div>
 
@@ -483,10 +495,18 @@
         <div class="tgl-row" onclick="tgl('t-fuma')"><span class="tgl-lbl">Fumante</span><div class="tgl" id="t-fuma"></div></div>
         <div class="tgl-row" onclick="tgl('t-alcool')"><span class="tgl-lbl">Consome álcool regularmente</span><div class="tgl" id="t-alcool"></div></div>
         <div class="tag-wrap" style="margin-top:16px"><label>Outros esportes / atividades</label>
-          <div class="tag-box" id="tb-esportes"><input class="tag-in" placeholder="Ex: Natação — Enter para adicionar" onkeydown="addTag(event,'tb-esportes')"></div>
+          <!-- tb-esportes -->
+<div class="tag-box" id="tb-esportes">
+  <input class="tag-in" placeholder="Ex: Natação" onkeydown="addTag(event,'tb-esportes')">
+  <button type="button" class="tag-add-btn" onclick="addTag(null,'tb-esportes')" aria-label="Adicionar">+</button>
+</div>
         </div>
         <div class="tag-wrap"><label>Cirurgias anteriores</label>
-          <div class="tag-box" id="tb-cirurgias"><input class="tag-in" placeholder="Ex: Joelho 2019 — Enter para adicionar" onkeydown="addTag(event,'tb-cirurgias')"></div>
+          <!-- tb-cirurgias -->
+<div class="tag-box" id="tb-cirurgias">
+  <input class="tag-in" placeholder="Ex: Joelho 2019" onkeydown="addTag(event,'tb-cirurgias')">
+  <button type="button" class="tag-add-btn" onclick="addTag(null,'tb-cirurgias')" aria-label="Adicionar">+</button>
+</div>
         </div>
 
         <span class="opt-lbl" style="margin-top:8px;display:block">Nível de dor atual (0 = sem dor)</span>
@@ -554,7 +574,11 @@
           <button class="ob" data-v="diario"><span class="ol">Diário</span></button>
         </div>
         <div class="tag-wrap"><label>Alergias / Intolerâncias</label>
-          <div class="tag-box" id="tb-aler"><input class="tag-in" placeholder="Ex: Lactose — Enter para adicionar" onkeydown="addTag(event,'tb-aler')"></div>
+          <!-- tb-aler -->
+<div class="tag-box" id="tb-aler">
+  <input class="tag-in" placeholder="Ex: Lactose" onkeydown="addTag(event,'tb-aler')">
+  <button type="button" class="tag-add-btn" onclick="addTag(null,'tb-aler')" aria-label="Adicionar">+</button>
+</div>
         </div>
       </div>
 

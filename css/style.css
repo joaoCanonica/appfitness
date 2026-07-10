@@ -722,6 +722,30 @@ input[type=range]:focus::-webkit-slider-thumb {
 
 .tag-rm:hover { opacity: 1 }
 
+.tag-add-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r4);
+  border: 1px solid var(--a-mid);
+  background: var(--a-dim);
+  color: var(--a2);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.13s, transform 0.1s;
+  touch-action: manipulation;
+  padding: 0;
+}
+.tag-add-btn:active {
+  transform: scale(0.9);
+  background: var(--a-mid);
+}
+
 .tag-in {
   border: none;
   background: transparent;
