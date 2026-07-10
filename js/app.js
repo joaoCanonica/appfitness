@@ -45,8 +45,9 @@ const TOTAL = 9;
     showView('view-auth');
   }
 
-  // Escuta mudanças de auth
+  // Escuta mudanças de auth — só age se não for acesso via link de aluno
   sb.auth.onAuthStateChange(async (event, session) => {
+    if (LINK_TOKEN) return; // aluno acessando via link — ignora mudanças de auth
     if (event === 'SIGNED_IN' && session) {
       currentUser = session.user;
       await loadProfessional();
@@ -63,8 +64,14 @@ const TOTAL = 9;
 function showView(id) {
   ['view-auth','view-dash','view-assessment'].forEach(v => {
     const el = document.getElementById(v);
-    if (el) el.classList.toggle('hide', v !== id);
-    if (el && v === 'view-dash') el.classList.toggle('on', v === id);
+    if (!el) return;
+    if (v === 'view-auth' || v === 'view-assessment') {
+      el.classList.toggle('hide', v !== id);
+    }
+    if (v === 'view-dash') {
+      el.classList.toggle('hide', v !== id);
+      el.classList.toggle('on', v === id);
+    }
   });
 }
 
