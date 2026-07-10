@@ -215,20 +215,34 @@ function showInfo(el, msg) {
 
 // ── PROFISSIONAL ──────────────────────────────────────────────
 async function loadProfessional() {
-  const { data } = await sb.from('professionals').select('*').eq('user_id', currentUser.id).single();
-  currentProf = data;
+  if (!currentUser) return;
+  const { data, error } = await sb.from('professionals').select('*').eq('user_id', currentUser.id).single();
 
-  if (currentProf) {
-    const un = document.getElementById('dash-user-name');
-    const an = document.getElementById('dash-academy-name');
-    const sp = document.getElementById('settings-profile-val');
-    if (un) un.textContent = currentProf.name;
-    if (an) an.textContent = currentProf.academy_name || 'Vitalis';
-    if (sp) sp.textContent = currentProf.name + (currentProf.academy_name ? ' · ' + currentProf.academy_name : '');
-    if (currentProf.primary_color) applyPrimaryColor(currentProf.primary_color);
-    const cp = document.getElementById('color-picker');
-    if (cp) cp.value = currentProf.primary_color || '#6366F1';
+  if (error || !data) {
+    // Perfil ainda não criado — cria agora com dados do auth
+    const meta = currentUser.user_metadata || {};
+    const { data: newProf, error: insertErr } = await sb.from('professionals').insert({
+      user_id:      currentUser.id,
+      name:         meta.name || currentUser.email.split('@')[0],
+      academy_name: meta.academy_name || null,
+      email:        currentUser.email
+    }).select().single();
+
+    if (insertErr) { toast('Erro ao carregar perfil'); console.error(insertErr); return; }
+    currentProf = newProf;
+  } else {
+    currentProf = data;
   }
+
+  const un = document.getElementById('dash-user-name');
+  const an = document.getElementById('dash-academy-name');
+  const sp = document.getElementById('settings-profile-val');
+  if (un) un.textContent = currentProf.name;
+  if (an) an.textContent = currentProf.academy_name || 'Vitalis';
+  if (sp) sp.textContent = currentProf.name + (currentProf.academy_name ? ' · ' + currentProf.academy_name : '');
+  if (currentProf.primary_color) applyPrimaryColor(currentProf.primary_color);
+  const cp = document.getElementById('color-picker');
+  if (cp) cp.value = currentProf.primary_color || '#6366F1';
 
   await loadStudents();
 }
@@ -260,11 +274,15 @@ async function saveProfile() {
 }
 
 function applyPrimaryColor(hex) {
+  if (!hex || !hex.startsWith('#')) return;
   document.documentElement.style.setProperty('--a', hex);
-  // Derivados aproximados
-  document.documentElement.style.setProperty('--a2', hex + 'CC');
-  document.documentElement.style.setProperty('--a-dim', hex + '1A');
-  document.documentElement.style.setProperty('--a-mid', hex + '2E');
+  // Converte hex para rgb para usar nos derivados com transparência
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  document.documentElement.style.setProperty('--a2',   `rgb(${r},${g},${b})`);
+  document.documentElement.style.setProperty('--a-dim', `rgba(${r},${g},${b},0.10)`);
+  document.documentElement.style.setProperty('--a-mid', `rgba(${r},${g},${b},0.18)`);
 }
 
 async function updatePrimaryColor(hex) {
@@ -354,44 +372,70 @@ async function saveStudent() {
   const notes = document.getElementById('ms-notes').value.trim();
 
   if (!name) { toast('Informe o nome do aluno'); return; }
+  if (!currentProf) { toast('Sessão expirada. Faça login novamente.'); return; }
+
+  const btn = document.getElementById('btn-save-student');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
 
   const payload = {
     professional_id: currentProf.id,
-    name, email: email || null, phone: phone || null,
-    birth_date: birth || null, notes: notes || null
+    name,
+    email: email || null,
+    phone: phone || null,
+    birth_date: birth || null,
+    notes: notes || null
   };
 
+  let error;
   if (currentStudent) {
-    await sb.from('students').update(payload).eq('id', currentStudent.id);
-    toast('Aluno atualizado');
+    ({ error } = await sb.from('students').update(payload).eq('id', currentStudent.id));
   } else {
-    await sb.from('students').insert(payload);
-    toast('Aluno adicionado');
+    ({ error } = await sb.from('students').insert(payload));
   }
 
+  btn.disabled = false;
+  btn.textContent = 'Salvar';
+
+  if (error) {
+    toast('Erro ao salvar aluno: ' + (error.message || 'tente novamente'));
+    console.error('saveStudent error:', error);
+    return;
+  }
+
+  toast(currentStudent ? 'Aluno atualizado!' : 'Aluno adicionado!');
+  const wasEditing = currentStudent;
   closeModal('modal-student');
   await loadStudents();
-  if (currentStudent) openStudentDetail(currentStudent.id);
+  if (wasEditing) await openStudentDetail(wasEditing.id);
 }
 
 async function deleteStudent() {
   if (!currentStudent) return;
-  if (!confirm(`Remover ${currentStudent.name}? Todas as avaliações serão excluídas.`)) return;
-  await sb.from('students').delete().eq('id', currentStudent.id);
-  toast('Aluno removido');
+  const nome = currentStudent.name;
+  if (!window.confirm(`Remover "${nome}"?\n\nTodas as avaliações deste aluno serão excluídas. Esta ação não pode ser desfeita.`)) return;
+
+  const { error } = await sb.from('students').delete().eq('id', currentStudent.id);
+  if (error) { toast('Erro ao remover aluno'); return; }
+
+  toast(`${nome} removido`);
+  currentStudent = null;
   await loadStudents();
   dashNav('ds-students');
 }
 
 async function openStudentDetail(studentId) {
-  const student = allStudents.find(s => s.id === studentId);
-  if (!student) return;
+  let student = allStudents.find(s => s.id === studentId);
+  if (!student) {
+    const { data } = await sb.from('students').select('*').eq('id', studentId).single();
+    if (!data) { toast('Aluno não encontrado'); return; }
+    student = data;
+    allStudents = [...allStudents.filter(s => s.id !== studentId), student];
+  }
   currentStudent = student;
-
   document.getElementById('detail-name').textContent = student.name;
   document.getElementById('detail-meta').textContent =
     [student.email, student.phone].filter(Boolean).join(' · ') || 'Sem contato';
-
   dashNav('ds-student-detail');
   await loadStudentAssessments();
 }
@@ -459,7 +503,14 @@ async function generateLink() {
   btn.disabled = false;
   btn.style.display = 'none';
 
-  if (error || !data) { toast('Erro ao gerar link'); btn.innerHTML = 'Gerar Link'; btn.style.display = ''; return; }
+  if (error || !data) {
+    toast('Erro ao gerar link: ' + (error?.message || 'tente novamente'));
+    console.error('generateLink error:', error);
+    btn.innerHTML = 'Gerar Link';
+    btn.style.display = '';
+    btn.disabled = false;
+    return;
+  }
 
   const url = `${window.location.origin}${window.location.pathname}?token=${data.token}`;
   document.getElementById('link-url-display').textContent = url;
@@ -614,9 +665,8 @@ function removeExercise(di, ei) {
 }
 
 async function saveWorkoutEdit() {
-  if (!currentWorkout) return;
+  if (!currentWorkout) { toast('Nenhum treino carregado'); return; }
 
-  // Coleta dados dos inputs
   currentWorkout.plan.forEach((day, di) => {
     day.exercicios.forEach((ex, ei) => {
       const nameEl = document.querySelector(`#ex-${di}-${ei} .ex-edit-name`);
@@ -624,17 +674,26 @@ async function saveWorkoutEdit() {
       if (nameEl) ex.nome   = nameEl.value.trim();
       if (setsEl) ex.series = setsEl.value.trim();
     });
-    // Remove exercícios sem nome
     day.exercicios = day.exercicios.filter(ex => ex.nome);
   });
+
+  const btn = document.querySelector('#ds-workout-editor .btn-p');
+  if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
 
   const { error } = await sb.from('workout_plans')
     .update({ plan: currentWorkout.plan, edited_manually: true, updated_at: new Date().toISOString() })
     .eq('id', currentWorkout.id);
 
-  if (error) { toast('Erro ao salvar treino'); return; }
-  toast('Treino salvo com sucesso');
-  await loadAssessmentWorkout(currentAssessment.id);
+  if (btn) { btn.disabled = false; btn.textContent = 'Salvar Treino'; }
+
+  if (error) {
+    toast('Erro ao salvar treino: ' + (error.message || 'tente novamente'));
+    console.error('saveWorkoutEdit error:', error);
+    return;
+  }
+
+  toast('Treino salvo!');
+  if (currentAssessment) await loadAssessmentWorkout(currentAssessment.id);
   dashNav('ds-assessment-view');
 }
 
