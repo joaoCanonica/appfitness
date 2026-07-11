@@ -325,8 +325,20 @@ async function loadStudents() {
   renderStudentList();
 }
 
+let currentSearchTerm = '';
+
+function filterStudents() {
+  const input = document.getElementById('student-search');
+  if (input) currentSearchTerm = input.value.toLowerCase().trim();
+  renderStudentList();
+}
+
 function renderStudentList() {
   const container = document.getElementById('student-list');
+  const filtered = currentSearchTerm 
+    ? allStudents.filter(s => s.name.toLowerCase().includes(currentSearchTerm))
+    : allStudents;
+
   if (!allStudents.length) {
     container.innerHTML = `
       <div class="empty-state">
@@ -338,7 +350,15 @@ function renderStudentList() {
     return;
   }
 
-  container.innerHTML = allStudents.map(s => {
+  if (allStudents.length > 0 && !filtered.length) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding: 24px 0;">
+        <div class="empty-sub">Nenhum aluno encontrado para "${escHtml(currentSearchTerm)}"</div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(s => {
     const initials = s.name.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase();
     return `
       <div class="student-row" onclick="openStudentDetail('${s.id}')">
@@ -466,7 +486,15 @@ async function loadStudentAssessments() {
   const container = document.getElementById('detail-assessments');
   if (!allAssessments.length) {
     container.innerHTML = `<div class="empty-state" style="padding:24px 0"><div class="empty-sub">Nenhuma avaliação ainda. Envie o link para o aluno.</div></div>`;
+    document.getElementById('evo-chart-container').style.display = 'none';
     return;
+  }
+  
+  if (allAssessments.length > 1) {
+    document.getElementById('evo-chart-container').style.display = 'block';
+    renderEvolutionChart();
+  } else {
+    document.getElementById('evo-chart-container').style.display = 'none';
   }
 
   container.innerHTML = allAssessments.map((a, idx) => {
@@ -485,6 +513,45 @@ async function loadStudentAssessments() {
         </div>
       </div>`;
   }).join('');
+}
+
+let evoChartInstance = null;
+function renderEvolutionChart() {
+  const ctx = document.getElementById('evoChart').getContext('2d');
+  
+  const sorted = [...allAssessments].sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+  const labels = sorted.map(a => new Date(a.created_at).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'}));
+  const pesoData = sorted.map(a => a.peso);
+  const imcData = sorted.map(a => a.imc);
+  
+  if (evoChartInstance) evoChartInstance.destroy();
+  
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+  const textColor = isDark ? '#7E8898' : '#4B5563';
+  const pColor = '#6366F1';
+  const imcColor = '#22D3A0';
+  
+  evoChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Peso (kg)', data: pesoData, borderColor: pColor, backgroundColor: pColor+'1A', tension: 0.3, yAxisID: 'y' },
+        { label: 'IMC', data: imcData, borderColor: imcColor, backgroundColor: imcColor+'1A', tension: 0.3, yAxisID: 'y1' }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: textColor, font: { size: 10 } } } },
+      scales: {
+        x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 } } },
+        y: { type: 'linear', display: true, position: 'left', grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 } } },
+        y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { color: textColor, font: { size: 10 } } }
+      }
+    }
+  });
 }
 
 // ── LINK DE AVALIAÇÃO ─────────────────────────────────────────
@@ -709,6 +776,77 @@ async function saveWorkoutEdit() {
   dashNav('ds-assessment-view');
 }
 
+// ── WORKOUT TEMPLATES (localStorage) ──────────────────────────
+function _templateKey() {
+  return `vitalis_tpl_${currentProf?.id || 'default'}`;
+}
+
+function saveWorkoutTemplate() {
+  if (!currentWorkout?.plan) { toast('Nenhum treino para salvar'); return; }
+  // Sync edits from inputs first
+  currentWorkout.plan.forEach((day, di) => {
+    day.exercicios.forEach((ex, ei) => {
+      const n = document.querySelector(`#ex-${di}-${ei} .ex-edit-name`);
+      const s = document.querySelector(`#ex-${di}-${ei} .ex-edit-sets`);
+      if (n) ex.nome = n.value.trim();
+      if (s) ex.series = s.value.trim();
+    });
+    day.exercicios = day.exercicios.filter(e => e.nome);
+  });
+
+  const name = window.prompt('Nome desta predefinição:', 'Treino Padrão');
+  if (!name) return;
+  try {
+    const key = _templateKey();
+    const existing = JSON.parse(localStorage.getItem(key) || '[]');
+    const idx = existing.findIndex(t => t.name === name);
+    const entry = { name, plan: currentWorkout.plan, savedAt: new Date().toISOString() };
+    if (idx >= 0) existing[idx] = entry; else existing.push(entry);
+    localStorage.setItem(key, JSON.stringify(existing));
+    toast(`Predefinição "${name}" salva!`);
+  } catch(e) { toast('Erro ao salvar predefinição'); }
+}
+
+function openLoadTemplate() {
+  try {
+    const templates = JSON.parse(localStorage.getItem(_templateKey()) || '[]');
+    if (!templates.length) { toast('Nenhuma predefinição salva ainda'); return; }
+
+    // Build a modal-like overlay inline
+    const existing = document.getElementById('tpl-picker');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'tpl-picker';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.6);display:flex;align-items:flex-end;justify-content:center;animation:fadeIn 0.15s';
+    overlay.innerHTML = `
+      <div style="background:var(--bg-card);border-radius:var(--r16) var(--r16) 0 0;width:100%;max-width:480px;padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom));max-height:70vh;overflow-y:auto;">
+        <div style="font-size:15px;font-weight:600;color:var(--t1);margin-bottom:4px">Predefinições de Treino</div>
+        <div style="font-size:12px;color:var(--t3);margin-bottom:16px">Toque para aplicar. O treino atual será substituído.</div>
+        ${templates.map((t,i) => `
+          <div onclick="applyTemplate(${i})" style="padding:12px 16px;border:1px solid var(--line-2);border-radius:var(--r8);margin-bottom:8px;cursor:pointer;transition:background 0.13s" onmouseenter="this.style.background='var(--bg-raised)'" onmouseleave="this.style.background=''">
+            <div style="font-size:14px;font-weight:500;color:var(--t1)">${escHtml(t.name)}</div>
+            <div style="font-size:11px;color:var(--t3);margin-top:2px">${t.plan.length} dias · Salvo em ${new Date(t.savedAt).toLocaleDateString('pt-BR')}</div>
+          </div>`).join('')}
+        <button class="btn-s" style="margin-top:8px;width:100%" onclick="document.getElementById('tpl-picker').remove()">Cancelar</button>
+      </div>`;
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+  } catch(e) { toast('Erro ao carregar predefinições'); }
+}
+
+function applyTemplate(idx) {
+  try {
+    const templates = JSON.parse(localStorage.getItem(_templateKey()) || '[]');
+    const tpl = templates[idx];
+    if (!tpl || !currentWorkout) return;
+    currentWorkout.plan = JSON.parse(JSON.stringify(tpl.plan)); // deep clone
+    document.getElementById('tpl-picker')?.remove();
+    openWorkoutEditor();
+    toast(`Predefinição "${tpl.name}" aplicada!`);
+  } catch(e) { toast('Erro ao aplicar predefinição'); }
+}
+
 // ── DASHBOARD NAV ─────────────────────────────────────────────
 function dashNav(screenId) {
   document.querySelectorAll('.dash-scr').forEach(s => s.classList.remove('on'));
@@ -758,6 +896,9 @@ async function loadBrandFromToken() {
     if (bn) bn.textContent = prof.academy_name || prof.name || 'Vitalis';
     if (prof.primary_color) applyPrimaryColor(prof.primary_color);
   }
+
+  // Restore any saved draft for this token
+  restoreDraft();
 }
 
 // ── FORMULÁRIO DO ALUNO ───────────────────────────────────────
@@ -885,13 +1026,146 @@ function validate(s) {
 
 function nextStp() {
   if (!validate(step)) return;
-  if (step < TOTAL) { step++; updatePrg(); window.scrollTo(0,0); }
-  else { collectData(); process(); }
+  if (step < TOTAL) {
+    step++;
+    saveDraft();
+    updatePrg();
+    window.scrollTo(0,0);
+  } else {
+    collectData();
+    process();
+  }
 }
 
 function prevStp() {
   if (step > 1) { step--; updatePrg(); window.scrollTo(0,0); }
   else show('s-hero');
+}
+
+// ── RASCUNHO (localStorage) ───────────────────────────────
+// Saves the entire raw form state (input values, selects, toggles, tags)
+function saveDraft() {
+  if (!LINK_TOKEN) return;
+  try {
+    const snap = {
+      step,
+      nome: document.getElementById('f-nome')?.value || '',
+      idade: document.getElementById('f-idade')?.value || '',
+      genero: document.getElementById('f-genero')?.value || '',
+      altura: document.getElementById('f-altura')?.value || '',
+      peso: document.getElementById('f-peso')?.value || '',
+      pdej: document.getElementById('f-pdej')?.value || '',
+      prazo: document.getElementById('f-prazo')?.value || '',
+      objCurto: document.getElementById('f-obj-curto')?.value || '',
+      objLongo: document.getElementById('f-obj-longo')?.value || '',
+      mot: document.getElementById('f-mot')?.value || '',
+      dias: document.getElementById('f-dias')?.value || '3',
+      sono: document.getElementById('f-sono')?.value || '7',
+      agua: document.getElementById('f-agua')?.value || '2',
+      pressao: document.getElementById('f-pressao')?.value || '',
+      sedentario: document.getElementById('f-sedentario')?.value || '',
+      // Selected option buttons
+      selObj: selVal('og-obj'), selNiv: selVal('og-niv'),
+      selLoc: selVal('og-loc'), selTmp: selVal('ow-tmp'),
+      selSono: selVal('ow-sono'), selStr: selVal('ow-str'),
+      selFrut: selVal('ow-frut'), selInd: selVal('ow-ind'),
+      // Toggles
+      tPers: document.getElementById('t-pers')?.classList.contains('on') || false,
+      tNutri: document.getElementById('t-nutri')?.classList.contains('on') || false,
+      tCardio: document.getElementById('t-cardio')?.classList.contains('on') || false,
+      tFuma: document.getElementById('t-fuma')?.classList.contains('on') || false,
+      tAlcool: document.getElementById('t-alcool')?.classList.contains('on') || false,
+      // Tags
+      doencas: getTags('tb-doencas'), lesoes: getTags('tb-lesoes'), meds: getTags('tb-meds'),
+      esportes: getTags('tb-esportes'), cirurgias: getTags('tb-cirurgias'), aler: getTags('tb-aler'),
+      // Days
+      daysSel: selDays(),
+      // Pain
+      pain: selPain(),
+    };
+    localStorage.setItem('vitalis_draft_' + LINK_TOKEN, JSON.stringify(snap));
+  } catch(e) {}
+}
+
+function restoreDraft() {
+  if (!LINK_TOKEN) return;
+  try {
+    const raw = localStorage.getItem('vitalis_draft_' + LINK_TOKEN);
+    if (!raw) return;
+    const d = JSON.parse(raw);
+
+    // Restore text inputs
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    set('f-nome', d.nome); set('f-idade', d.idade); set('f-genero', d.genero);
+    set('f-altura', d.altura); set('f-peso', d.peso); set('f-pdej', d.pdej);
+    set('f-prazo', d.prazo); set('f-obj-curto', d.objCurto); set('f-obj-longo', d.objLongo);
+    set('f-mot', d.mot); set('f-dias', d.dias); set('f-sono', d.sono);
+    set('f-agua', d.agua); set('f-pressao', d.pressao); set('f-sedentario', d.sedentario);
+
+    // Update range display labels
+    document.getElementById('rv-dias').textContent = (d.dias || 3) + ((+d.dias === 1) ? ' dia' : ' dias');
+    document.getElementById('rv-sono').textContent = (d.sono || 7) + 'h';
+    document.getElementById('rv-agua').textContent = parseFloat(d.agua || 2).toFixed(1) + 'L';
+
+    // Restore option button selections
+    const selOpt = (gid, val) => {
+      if (!val) return;
+      const btn = document.querySelector(`#${gid} .ob[data-v="${val}"]`);
+      if (btn) { document.querySelectorAll(`#${gid} .ob`).forEach(b => b.classList.remove('sel')); btn.classList.add('sel'); }
+    };
+    selOpt('og-obj', d.selObj); selOpt('og-niv', d.selNiv); selOpt('og-loc', d.selLoc);
+    selOpt('ow-tmp', d.selTmp); selOpt('ow-sono', d.selSono); selOpt('ow-str', d.selStr);
+    selOpt('ow-frut', d.selFrut); selOpt('ow-ind', d.selInd);
+
+    // Restore toggles
+    const setTgl = (id, on) => { const el = document.getElementById(id); if (el) { if (on) el.classList.add('on'); else el.classList.remove('on'); } };
+    setTgl('t-pers', d.tPers); setTgl('t-nutri', d.tNutri);
+    setTgl('t-cardio', d.tCardio); setTgl('t-fuma', d.tFuma); setTgl('t-alcool', d.tAlcool);
+
+    // Restore tags
+    const setTags = (boxId, tags) => {
+      if (!tags?.length) return;
+      const box = document.getElementById(boxId);
+      if (!box) return;
+      const inp = box.querySelector('.tag-in');
+      tags.forEach(val => {
+        const t = document.createElement('div');
+        t.className = 'tag-item';
+        t.innerHTML = `<span>${escHtml(val)}</span><button class="tag-rm" onclick="this.parentElement.remove()" type="button" aria-label="Remover">×</button>`;
+        box.insertBefore(t, inp);
+      });
+    };
+    setTags('tb-doencas', d.doencas); setTags('tb-lesoes', d.lesoes); setTags('tb-meds', d.meds);
+    setTags('tb-esportes', d.esportes); setTags('tb-cirurgias', d.cirurgias); setTags('tb-aler', d.aler);
+
+    // Restore days
+    if (d.daysSel?.length) {
+      document.querySelectorAll('.day-btn').forEach(b => {
+        if (d.daysSel.includes(b.dataset.d)) b.classList.add('sel');
+        else b.classList.remove('sel');
+      });
+    }
+
+    // Restore pain
+    if (d.pain !== undefined) {
+      document.querySelectorAll('.pain-btn').forEach(b => {
+        b.classList.toggle('sel', +b.dataset.pain === d.pain);
+      });
+    }
+
+    // Jump to saved step
+    if (d.step && d.step > 1) {
+      step = Math.min(d.step, TOTAL - 1); // don't jump to last step (summary)
+      updatePrg();
+      show('s-form');
+      toast('Rascunho restaurado! Continue de onde parou.');
+    }
+  } catch(e) {}
+}
+
+function clearDraft() {
+  if (!LINK_TOKEN) return;
+  try { localStorage.removeItem('vitalis_draft_' + LINK_TOKEN); } catch(e) {}
 }
 
 function collectData() {
@@ -1212,6 +1486,8 @@ async function saveAssessmentToSupabase(d, imc, tmb, tdee, aguaML, workoutPlan) 
     console.error('Erro ao salvar avaliação:', error);
     return;
   }
+
+  clearDraft(); // Limpa rascunho após salvar com sucesso
 
   await sb.from('workout_plans').insert({
     assessment_id:   assessment.id,

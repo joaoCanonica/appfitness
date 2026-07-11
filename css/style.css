@@ -884,12 +884,22 @@ input[type=range]:focus::-webkit-slider-thumb {
   to { transform: rotate(360deg) }
 }
 
+/* Glow pulse on the outer ring */
+.load-ring-track {
+  animation: ringGlow 2s ease-in-out infinite;
+}
+@keyframes ringGlow {
+  0%, 100% { box-shadow: 0 0 0 0 transparent }
+  50%       { box-shadow: 0 0 12px 2px var(--a-dim) }
+}
+
 .load-t {
   font-size: 17px;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--t1);
   margin-bottom: 6px;
+  animation: fadeSlideUp 0.4s ease both;
 }
 
 .load-s {
@@ -897,6 +907,12 @@ input[type=range]:focus::-webkit-slider-thumb {
   color: var(--t3);
   margin-bottom: 28px;
   line-height: 1.5;
+  animation: fadeSlideUp 0.5s ease 0.1s both;
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(8px) }
+  to   { opacity: 1; transform: translateY(0) }
 }
 
 .load-steps {
@@ -915,9 +931,18 @@ input[type=range]:focus::-webkit-slider-thumb {
   border-radius: var(--r8);
   font-size: 13px;
   color: var(--t3);
-  opacity: 0.4;
-  transition: opacity 0.3s, color 0.3s, background 0.3s;
+  opacity: 0;
+  transform: translateY(6px);
+  animation: lsReveal 0.4s ease forwards;
   text-align: left;
+}
+.ls:nth-child(1) { animation-delay: 0.1s }
+.ls:nth-child(2) { animation-delay: 0.25s }
+.ls:nth-child(3) { animation-delay: 0.4s }
+.ls:nth-child(4) { animation-delay: 0.55s }
+
+@keyframes lsReveal {
+  to { opacity: 0.4; transform: translateY(0) }
 }
 
 .ls-icon {
@@ -936,6 +961,13 @@ input[type=range]:focus::-webkit-slider-thumb {
   opacity: 1;
   color: var(--a2);
   background: var(--a-dim);
+  transform: translateY(0);
+  animation: lsActivate 0.3s ease forwards, lsReveal 0s forwards;
+}
+
+@keyframes lsActivate {
+  from { background: transparent }
+  to   { background: var(--a-dim) }
 }
 
 .ls.act .ls-icon {
