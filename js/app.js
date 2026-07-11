@@ -1387,11 +1387,25 @@ function generatePDF(data, prof) {
     // ── Análise
     const nome2 = data.nome;
     const tmb2  = data.tmb || calcTMB(data.peso,data.altura,data.idade,data.genero);
-    const tdee2 = data.tdee || 0;
+    const tdee2 = +data.tdee || Math.round((+calcTMB(+data.peso,+data.altura,+data.idade,data.genero)) * (actFactor[data.nivel] || 1.55));
     const aguaML2 = data.agua_ml || Math.round((data.peso||70)*35);
     const { fortes, atenc, rec } = buildAnalysis(
-      { ...data, daysSel: data.dias_disponiveis||data.daysSel||[], local: data.local_treino||data.local, nivel: data.nivel, obj: data.objetivo||data.obj },
-      imc, tmb2, tdee2, aguaML2
+      {
+        ...data,
+        peso:    +data.peso    || 70,
+        altura:  +data.altura  || 170,
+        idade:   +data.idade   || 25,
+        agua:    +data.agua_litros || +data.agua || 2,
+        sonoH:   +data.sono_horas  || +data.sonoH || 7,
+        daysSel: data.dias_disponiveis || data.daysSel || [],
+        local:   data.local_treino || data.local,
+        nivel:   data.nivel,
+        obj:     data.objetivo || data.obj,
+      },
+      imc,
+      +tmb2,
+      +tdee2,
+      +aguaML2
     );
 
     writeSection('Pontos Fortes', fortes, [5, 150, 105]);
