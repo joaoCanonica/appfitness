@@ -469,35 +469,38 @@ async function openStudentDetail(studentId) {
   document.getElementById('detail-meta').textContent =
     [student.email, student.phone].filter(Boolean).join(' · ') || 'Sem contato';
   dashNav('ds-student-detail');
+  // Sempre recarrega avaliações ao abrir o detalhe — garante dados frescos
   await loadStudentAssessments();
 }
 
 async function loadStudentAssessments() {
-  if (!currentStudent) return;
-  const { data } = await sb.from('assessments')
+  if (!currentStudent || !currentProf) return;
+
+  const container = document.getElementById('detail-assessments');
+  container.innerHTML = '<div style="padding:24px 20px;text-align:center"><div class="spin-sm" style="margin:0 auto"></div></div>';
+
+  const { data, error } = await sb.from('assessments')
     .select('*')
     .eq('student_id', currentStudent.id)
+    .eq('professional_id', currentProf.id)
     .order('created_at', { ascending: false });
+
+  if (error) {
+    container.innerHTML = '<div style="padding:24px 20px;font-size:13px;color:var(--red)">Erro ao carregar avaliações.</div>';
+    console.error('loadStudentAssessments:', error);
+    return;
+  }
 
   allAssessments = data || [];
   const cnt = document.getElementById('detail-assess-count');
   if (cnt) cnt.textContent = allAssessments.length + ' ' + (allAssessments.length === 1 ? 'avaliação' : 'avaliações');
 
-  const container = document.getElementById('detail-assessments');
   if (!allAssessments.length) {
-    container.innerHTML = `<div class="empty-state" style="padding:24px 0"><div class="empty-sub">Nenhuma avaliação ainda. Envie o link para o aluno.</div></div>`;
-    document.getElementById('evo-chart-container').style.display = 'none';
+    container.innerHTML = `<div class="empty-state" style="padding:24px 0"><div class="empty-sub">Nenhuma avaliação ainda. Envie o link para o aluno preencher.</div></div>`;
     return;
   }
-  
-  if (allAssessments.length > 1) {
-    document.getElementById('evo-chart-container').style.display = 'block';
-    renderEvolutionChart();
-  } else {
-    document.getElementById('evo-chart-container').style.display = 'none';
-  }
 
-  container.innerHTML = allAssessments.map((a, idx) => {
+  container.innerHTML = allAssessments.map((a) => {
     const date = new Date(a.created_at).toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'numeric' });
     const imcS = imcStatus(a.imc);
     return `
@@ -556,9 +559,16 @@ function renderEvolutionChart() {
 
 // ── LINK DE AVALIAÇÃO ─────────────────────────────────────────
 function openSendLink() {
+  // Reseta o modal completamente a cada abertura
   document.getElementById('link-card').style.display = 'none';
-  document.getElementById('btn-gen-link').style.display = '';
+  const btn = document.getElementById('btn-gen-link');
+  btn.style.display = '';
+  btn.disabled = false;
+  btn.innerHTML = 'Gerar Link';
+  document.getElementById('link-url-display').textContent = '';
   document.getElementById('modal-link-sub').textContent = `Gere o link para ${currentStudent?.name || 'o aluno'} preencher.`;
+  window._generatedLink = null;
+  window._generatedLinkStudent = null;
   openModal('modal-link');
 }
 
