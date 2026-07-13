@@ -875,13 +875,12 @@ function switchTab(tab) {
 async function loadBrandFromToken() {
   if (!LINK_TOKEN) return;
   const { data: link } = await sb.from('assessment_links')
-    .select('professional_id, student_id')
+    .select('professional_id, student_id, used, expires_at')
     .eq('token', LINK_TOKEN)
-    .eq('used', false)
     .gt('expires_at', new Date().toISOString())
     .single();
 
-  if (!link) {
+  if (!link || link.used) {
     const hero = document.getElementById('s-hero');
     if (hero) {
       const sub = hero.querySelector('.hero-sub');
@@ -915,10 +914,15 @@ async function loadBrandFromToken() {
 // Option buttons
 try {
   document.querySelectorAll('.og, .oi-wrap').forEach(g => {
+    const isMulti = g.dataset.multi === 'true';
     g.querySelectorAll('.ob').forEach(b => {
       b.addEventListener('click', function() {
-        g.querySelectorAll('.ob').forEach(x => x.classList.remove('sel'));
-        this.classList.add('sel');
+        if (isMulti) {
+          this.classList.toggle('sel');
+        } else {
+          g.querySelectorAll('.ob').forEach(x => x.classList.remove('sel'));
+          this.classList.add('sel');
+        }
       });
       b.addEventListener('touchend', function(e) { e.preventDefault(); this.click(); }, { passive: false });
     });
@@ -981,7 +985,16 @@ function getTags(boxId) {
   return items;
 }
 
-function selVal(gid) { const s = document.querySelector(`#${gid} .ob.sel`); return s ? s.dataset.v : null; }
+function selVal(gid) {
+  const g = document.getElementById(gid);
+  if (!g) return null;
+  if (g.dataset.multi === 'true') {
+    const sels = [...g.querySelectorAll('.ob.sel')].map(b => b.dataset.v);
+    return sels.length > 0 ? sels.join(',') : null;
+  }
+  const s = g.querySelector('.ob.sel');
+  return s ? s.dataset.v : null;
+}
 function selDays()   { const ds = []; document.querySelectorAll('.day-btn.sel').forEach(d => ds.push(d.dataset.d)); return ds; }
 function selPain()   { const s = document.querySelector('.pain-btn.sel'); return s ? +s.dataset.pain : 0; }
 
@@ -1238,6 +1251,10 @@ function imcStatus(v) {
 
 const genLabel = { masculino:'Masculino', feminino:'Feminino', outro:'Outro' };
 const objLabel = { 'perder-peso':'Perder Peso','ganhar-massa':'Ganhar Massa','resistencia':'Resistência','fitness-geral':'Fitness Geral' };
+function formatObjetivos(obj) {
+  if (!obj) return 'Fitness Geral';
+  return obj.split(',').map(o => objLabel[o.trim()] || o.trim()).join(' + ');
+}
 const nivLabel = { iniciante:'Iniciante', intermediario:'Intermediário', avancado:'Avançado' };
 const locLabel = { casa:'Casa', academia:'Academia', 'ar-livre':'Ar Livre', misto:'Misto' };
 
@@ -1325,8 +1342,11 @@ function buildAnalysis(d, imc, tmb, tdee, aguaML) {
   if (d.fuma) atenc.push({ ic:'w', sy:'△', tx:'Tabagismo reduz capacidade cardiorrespiratória e recuperação muscular.' });
   if (atenc.length === 0) atenc.push({ ic:'w', sy:'△', tx:'Nenhum ponto crítico identificado. Mantenha a consistência.' });
 
-  const cals = d.obj === 'perder-peso' ? Math.round(tdee * 0.85) : d.obj === 'ganhar-massa' ? Math.round(tdee * 1.12) : tdee;
-  rec.push({ ic:'i', sy:'→', tx:`Meta calórica: ${cals.toLocaleString('pt-BR')} kcal/dia para ${objLabel[d.obj] || d.obj}.` });
+  const objs = (d.obj || 'fitness-geral').split(',').map(o => o.trim());
+  const hasPerder = objs.includes('perder-peso');
+  const hasGanhar = objs.includes('ganhar-massa');
+  const cals = hasPerder ? Math.round(tdee * 0.85) : hasGanhar ? Math.round(tdee * 1.12) : tdee;
+  rec.push({ ic:'i', sy:'→', tx:`Meta calórica: ${cals.toLocaleString('pt-BR')} kcal/dia para ${formatObjetivos(d.obj)}.` });
   rec.push({ ic:'i', sy:'→', tx:`Proteína diária: ${Math.round((d.peso||70) * 1.8)}–${Math.round((d.peso||70) * 2.2)}g para suportar treino ${nivLabel[d.nivel] || ''}.` });
   if ((d.daysSel || []).length > 0) rec.push({ ic:'i', sy:'→', tx:`Plano de ${d.daysSel.length} dias semanais gerado: ${d.daysSel.join(', ')}.` });
   if (d.objCurto) rec.push({ ic:'i', sy:'→', tx:`Curto prazo: "${d.objCurto}". Avalie progresso em 30 dias.` });
@@ -1673,7 +1693,7 @@ function generatePDF(data, prof) {
     // ── Análise
     const nome2 = data.nome;
     const tmb2  = data.tmb || calcTMB(data.peso,data.altura,data.idade,data.genero);
-    const tdee2 = +data.tdee || Math.round((+calcTMB(+data.peso,+data.altura,+data.idade,data.genero)) * (actFactor[data.nivel] || 1.55));
+    const tdee2 = +data.tdee || Math.round(+calcTMB(+data.peso||70, +data.altura||170, +data.idade||25, data.genero||'masculino') * (actFactor[data.nivel||'intermediario'] || 1.55));
     const aguaML2 = data.agua_ml || Math.round((data.peso||70)*35);
     const { fortes, atenc, rec } = buildAnalysis(
       {
@@ -1681,17 +1701,19 @@ function generatePDF(data, prof) {
         peso:    +data.peso    || 70,
         altura:  +data.altura  || 170,
         idade:   +data.idade   || 25,
-        agua:    +data.agua_litros || +data.agua || 2,
-        sonoH:   +data.sono_horas  || +data.sonoH || 7,
+        agua:    +(data.agua_litros || data.agua) || 2,
+        sonoH:   +(data.sono_horas  || data.sonoH) || 7,
+        stress:  data.estresse || data.stress || 'moderado',
+        frutas:  data.frutas || 'diario',
+        indust:  data.industrializados || data.indust || 'raramente',
+        doencas: data.doencas || [],
+        lesoes:  data.lesoes  || [],
         daysSel: data.dias_disponiveis || data.daysSel || [],
-        local:   data.local_treino || data.local,
-        nivel:   data.nivel,
-        obj:     data.objetivo || data.obj,
+        local:   data.local_treino || data.local || 'academia',
+        nivel:   data.nivel || 'intermediario',
+        obj:     data.objetivo || data.obj || 'fitness-geral',
       },
-      imc,
-      +tmb2,
-      +tdee2,
-      +aguaML2
+      imc, +tmb2, +tdee2, +aguaML2
     );
 
     writeSection('Pontos Fortes', fortes, [5, 150, 105]);
