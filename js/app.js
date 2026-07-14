@@ -578,11 +578,10 @@ async function generateLink() {
   btn.innerHTML = '<div class="spin-sm"></div>';
   btn.disabled = true;
 
-  // Invalida links anteriores não usados para este aluno
+  // Invalida todos os links anteriores deste aluno
   await sb.from('assessment_links')
     .update({ used: true })
-    .eq('student_id', currentStudent.id)
-    .eq('used', false);
+    .eq('student_id', currentStudent.id);
 
   const { data, error } = await sb.from('assessment_links')
     .insert({ professional_id: currentProf.id, student_id: currentStudent.id })
@@ -1477,9 +1476,12 @@ async function saveAssessmentToSupabase(d, imc, tmb, tdee, aguaML, workoutPlan) 
   const studentId = window._linkStudentId;
 
   if (!profId || !studentId) {
-    console.error('saveAssessmentToSupabase: profId ou studentId ausente');
+    console.error('[Vitalis] saveAssessmentToSupabase: profId ou studentId ausente', { profId, studentId, LINK_TOKEN });
+    toast('Erro interno: link inválido. Solicite um novo link ao seu profissional.');
     return;
   }
+
+  console.log('[Vitalis] Salvando avaliação...', { profId, studentId, token: LINK_TOKEN });
 
   const payload = {
     professional_id:  profId,
@@ -1507,25 +1509,41 @@ async function saveAssessmentToSupabase(d, imc, tmb, tdee, aguaML, workoutPlan) 
     imc_categoria: imcStatus(imc).lbl,
   };
 
-  const { data: assessment, error } = await sb.from('assessments')
+  const { data: assessment, error: assessErr } = await sb.from('assessments')
     .insert(payload)
     .select()
     .single();
 
-  if (error || !assessment) {
-    console.error('Erro ao salvar avaliação:', error);
+  if (assessErr || !assessment) {
+    console.error('[Vitalis] Erro ao salvar avaliação:', assessErr);
+    // Mostra mensagem útil para o profissional investigar
+    toast('Avaliação processada! (Erro ao salvar no servidor — código: ' + (assessErr?.code || 'desconhecido') + ')');
     return;
   }
 
-  clearDraft(); // Limpa rascunho após salvar com sucesso
+  console.log('[Vitalis] Avaliação salva:', assessment.id);
 
-  await sb.from('workout_plans').insert({
+  // Marca o link como usado (o trigger foi removido — JS faz isso agora)
+  await sb.from('assessment_links')
+    .update({ used: true })
+    .eq('token', LINK_TOKEN);
+
+  // Salva plano de treino
+  const { error: workoutErr } = await sb.from('workout_plans').insert({
     assessment_id:   assessment.id,
     professional_id: profId,
     student_id:      studentId,
     plan:            workoutPlan,
     edited_manually: false,
   });
+
+  if (workoutErr) {
+    console.error('[Vitalis] Erro ao salvar treino:', workoutErr);
+  } else {
+    console.log('[Vitalis] Treino salvo com sucesso');
+  }
+
+  clearDraft();
 }
 
 // ── RESUMO ────────────────────────────────────────────────────
