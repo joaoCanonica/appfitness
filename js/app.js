@@ -471,10 +471,12 @@ async function openStudentDetail(studentId) {
   dashNav('ds-student-detail');
   // Sempre recarrega avaliações ao abrir o detalhe — garante dados frescos
   await loadStudentAssessments();
+  await loadStudentDocs();
 }
 
 async function loadStudentAssessments() {
   if (!currentStudent || !currentProf) return;
+  allAssessments = []; // limpa cache antes de buscar
 
   const container = document.getElementById('detail-assessments');
   container.innerHTML = '<div style="padding:24px 20px;text-align:center"><div class="spin-sm" style="margin:0 auto"></div></div>';
@@ -516,6 +518,20 @@ async function loadStudentAssessments() {
         </div>
       </div>`;
   }).join('');
+
+  // Adiciona badge de evolução se tiver mais de 1 avaliação
+  if (allAssessments.length >= 2) {
+    const curr = allAssessments[0];
+    const prev = allAssessments[1];
+    const diffPeso = (+curr.peso - +prev.peso).toFixed(1);
+    const diffImc  = (+curr.imc  - +prev.imc).toFixed(1);
+    const sinal = diffPeso < 0 ? '↓' : diffPeso > 0 ? '↑' : '=';
+    const cor   = diffPeso < 0 ? 'var(--green)' : diffPeso > 0 ? 'var(--red)' : 'var(--t3)';
+    const evolDiv = document.createElement('div');
+    evolDiv.style.cssText = 'margin:0 0 12px;padding:12px 14px;border-radius:8px;background:var(--bg-card);border:1px solid var(--line-2);font-size:13px;color:var(--t2)';
+    evolDiv.innerHTML = `<span style="font-weight:600;color:var(--t1)">Evolução</span> &nbsp;Peso: <span style="color:${cor};font-weight:600">${sinal}${Math.abs(diffPeso)}kg</span> &nbsp;·&nbsp; IMC: <span style="color:${cor};font-weight:600">${sinal}${Math.abs(diffImc)}</span> <span style="color:var(--t3);font-size:11px">(vs avaliação anterior)</span>`;
+    container.insertBefore(evolDiv, container.firstChild);
+  }
 }
 
 let evoChartInstance = null;
@@ -1516,8 +1532,7 @@ async function saveAssessmentToSupabase(d, imc, tmb, tdee, aguaML, workoutPlan) 
 
   if (assessErr || !assessment) {
     console.error('[Vitalis] Erro ao salvar avaliação:', assessErr);
-    // Mostra mensagem útil para o profissional investigar
-    toast('Avaliação processada! (Erro ao salvar no servidor — código: ' + (assessErr?.code || 'desconhecido') + ')');
+    toast('Erro ao salvar avaliação. Tente novamente ou solicite novo link.');
     return;
   }
 
@@ -1902,6 +1917,54 @@ document.addEventListener('touchend', function(e) {
   if (now - _lt < 350 && tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') e.preventDefault();
   _lt = now;
 }, { passive: false });
+
+// ── DOCUMENTOS DO ALUNO ───────────────────────────────────────
+async function uploadStudentPDF(input) {
+  if (!input.files?.length || !currentStudent || !currentProf) return;
+  const file = input.files[0];
+  if (file.type !== 'application/pdf') { toast('Somente arquivos PDF'); return; }
+  if (file.size > 5 * 1024 * 1024) { toast('PDF muito grande (máx 5MB)'); return; }
+
+  toast('Enviando PDF...');
+  const path = `${currentProf.id}/${currentStudent.id}/${Date.now()}_${file.name}`;
+
+  const { error } = await sb.storage.from('student-docs').upload(path, file, { upsert: false });
+  if (error) { toast('Erro ao enviar: ' + error.message); return; }
+
+  toast('PDF enviado com sucesso!');
+  await loadStudentDocs();
+  input.value = '';
+}
+
+async function loadStudentDocs() {
+  if (!currentStudent || !currentProf) return;
+  const container = document.getElementById('student-docs');
+  if (!container) return;
+
+  const path = `${currentProf.id}/${currentStudent.id}`;
+  const { data, error } = await sb.storage.from('student-docs').list(path, { sortBy: { column: 'created_at', order: 'desc' } });
+
+  if (error || !data?.length) {
+    container.innerHTML = '<div style="font-size:13px;color:var(--t3);padding:8px 0">Nenhum documento enviado.</div>';
+    return;
+  }
+
+  container.innerHTML = data.map(f => {
+    const { data: urlData } = sb.storage.from('student-docs').getPublicUrl(`${path}/${f.name}`);
+    const size = f.metadata?.size ? (f.metadata.size / 1024).toFixed(0) + 'kb' : '';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)">
+      <div style="font-size:18px">📄</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(f.name.replace(/^\d+_/, ''))}</div>
+        <div style="font-size:11px;color:var(--t3)">${size}</div>
+      </div>
+      <a href="${urlData.publicUrl}" target="_blank" style="font-size:11px;font-weight:600;color:var(--a2);text-decoration:none;padding:5px 10px;border:1px solid var(--a-mid);border-radius:4px;background:var(--a-dim)">Abrir</a>
+    </div>`;
+  }).join('');
+}
+
+window.uploadStudentPDF = uploadStudentPDF;
+window.loadStudentDocs  = loadStudentDocs;
 
 // Globals
 window.startForm       = startForm;

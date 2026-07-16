@@ -189,6 +189,19 @@
         <div class="empty-sub">Nenhuma avaliação ainda. Envie o link para o aluno.</div>
       </div>
     </div>
+
+    <!-- Aba de documentos do aluno -->
+    <div class="section-hdr" style="padding-bottom:8px;margin-top:8px">
+      <div class="section-title" style="font-size:15px">Documentos</div>
+      <label class="btn-sm" style="width:auto;padding:6px 12px;font-size:11px;cursor:pointer">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+        Enviar PDF
+        <input type="file" accept=".pdf" style="display:none" onchange="uploadStudentPDF(this)">
+      </label>
+    </div>
+    <div id="student-docs" style="padding:0 20px 16px">
+      <div style="font-size:13px;color:var(--t3);padding:8px 0">Nenhum documento enviado.</div>
+    </div>
   </div>
 
   <!-- Tela: Resultado de Avaliação (painel do profissional) -->
