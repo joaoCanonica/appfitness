@@ -1493,54 +1493,48 @@ function toggleWD(id) {
 
 // ── SALVAR NO SUPABASE ────────────────────────────────────────
 async function saveAssessmentToSupabase(d, imc, tmb, tdee, aguaML, workoutPlan) {
-  if (!LINK_TOKEN) {
-    console.log('[Vitalis] Sem LINK_TOKEN — modo standalone, não salva.');
-    return;
-  }
+  if (!LINK_TOKEN) return;
 
   const profId    = window._linkProfId;
   const studentId = window._linkStudentId;
 
-  console.log('[Vitalis] Iniciando save...', { profId, studentId, LINK_TOKEN });
-
   if (!profId || !studentId) {
-    console.error('[Vitalis] profId ou studentId ausente — link não foi carregado corretamente.');
+    console.error('[Vitalis] profId ou studentId ausente');
     toast('Link inválido. Feche e abra o link novamente.');
     return;
   }
 
-  // Monta payload — garante tipos corretos
-  const payload = {
-    professional_id: profId,
-    student_id:      studentId,
-    link_token:      LINK_TOKEN,
-    nome:            String(d.nome || ''),
-    idade:           parseInt(d.idade) || null,
-    genero:          d.genero || null,
-    altura:          parseFloat(d.altura) || null,
-    peso:            parseFloat(d.peso) || null,
-    objetivo:        d.obj || null,
-    peso_desejado:   parseFloat(d.pesoDej) || null,
-    prazo:           d.prazo || null,
-    motivacao:       d.motiv || null,
-    nivel:           d.nivel || null,
-    dias_semana:     parseInt(d.dias) || null,
-    tem_personal:    Boolean(d.pers),
-    tem_nutri:       Boolean(d.nutri),
-    doencas:         Array.isArray(d.doencas) ? d.doencas : [],
-    lesoes:          Array.isArray(d.lesoes)  ? d.lesoes  : [],
-    medicamentos:    Array.isArray(d.meds)    ? d.meds    : [],
-    sono_qualidade:  d.sono  || null,
-    sono_horas:      parseInt(d.sonoH) || null,
-    estresse:        d.stress || null,
-    agua_litros:     parseFloat(d.agua) || null,
-    frutas:          d.frutas || null,
-    industrializados: d.indust || null,
-    alergias:        Array.isArray(d.aler) ? d.aler : [],
-    dias_disponiveis: Array.isArray(d.daysSel) ? d.daysSel : [],
-    tempo_sessao:    parseInt(d.tempo) || null,
-    local_treino:    d.local || null,
-    anamnese: {
+  console.log('[Vitalis] Salvando via RPC...', { profId, studentId });
+
+  const { data, error } = await sb.rpc('save_assessment_via_link', {
+    p_token:            LINK_TOKEN,
+    p_nome:             String(d.nome || ''),
+    p_idade:            parseInt(d.idade)     || null,
+    p_genero:           d.genero              || null,
+    p_altura:           parseFloat(d.altura)  || null,
+    p_peso:             parseFloat(d.peso)    || null,
+    p_objetivo:         d.obj                 || null,
+    p_peso_desejado:    parseFloat(d.pesoDej) || null,
+    p_prazo:            d.prazo               || null,
+    p_motivacao:        d.motiv               || null,
+    p_nivel:            d.nivel               || null,
+    p_dias_semana:      parseInt(d.dias)      || null,
+    p_tem_personal:     Boolean(d.pers),
+    p_tem_nutri:        Boolean(d.nutri),
+    p_doencas:          Array.isArray(d.doencas)  ? d.doencas  : [],
+    p_lesoes:           Array.isArray(d.lesoes)   ? d.lesoes   : [],
+    p_medicamentos:     Array.isArray(d.meds)     ? d.meds     : [],
+    p_sono_qualidade:   d.sono                || null,
+    p_sono_horas:       parseInt(d.sonoH)     || null,
+    p_estresse:         d.stress              || null,
+    p_agua_litros:      parseFloat(d.agua)    || null,
+    p_frutas:           d.frutas              || null,
+    p_industrializados: d.indust              || null,
+    p_alergias:         Array.isArray(d.aler)     ? d.aler     : [],
+    p_dias_disponiveis: Array.isArray(d.daysSel)  ? d.daysSel  : [],
+    p_tempo_sessao:     parseInt(d.tempo)     || null,
+    p_local_treino:     d.local               || null,
+    p_anamnese: {
       pressao:    d.pressao    || null,
       sedentario: d.sedentario || null,
       cardioHist: Boolean(d.cardioHist),
@@ -1548,70 +1542,32 @@ async function saveAssessmentToSupabase(d, imc, tmb, tdee, aguaML, workoutPlan) 
       alcool:     Boolean(d.alcool),
       esportes:   Array.isArray(d.esportes)  ? d.esportes  : [],
       cirurgias:  Array.isArray(d.cirurgias) ? d.cirurgias : [],
-      nivelDor:   parseInt(d.nivelDor) || 0,
+      nivelDor:   parseInt(d.nivelDor)  || 0,
       objCurto:   d.objCurto || null,
       objLongo:   d.objLongo || null,
     },
-    imc:           parseFloat(imc.toFixed(2)),
-    tmb:           parseFloat(tmb.toFixed(2)),
-    tdee:          parseInt(tdee) || null,
-    agua_ml:       parseInt(aguaML) || null,
-    imc_categoria: imcStatus(imc).lbl,
-  };
-
-  console.log('[Vitalis] Payload pronto:', JSON.stringify(payload).slice(0, 200));
-
-  // INSERT na tabela assessments
-  const { data: assessment, error: assessErr } = await sb
-    .from('assessments')
-    .insert(payload)
-    .select('id')
-    .single();
-
-  if (assessErr) {
-    console.error('[Vitalis] ERRO no insert de assessments:', {
-      code:    assessErr.code,
-      message: assessErr.message,
-      details: assessErr.details,
-      hint:    assessErr.hint,
-    });
-    toast(`Erro ${assessErr.code}: ${assessErr.message}`);
-    return;
-  }
-
-  if (!assessment) {
-    console.error('[Vitalis] Insert retornou sem dados');
-    toast('Erro ao salvar: resposta vazia do servidor.');
-    return;
-  }
-
-  console.log('[Vitalis] Avaliação salva com ID:', assessment.id);
-
-  // Marca link como usado
-  const { error: linkErr } = await sb
-    .from('assessment_links')
-    .update({ used: true })
-    .eq('token', LINK_TOKEN);
-
-  if (linkErr) console.warn('[Vitalis] Aviso: não foi possível marcar link como usado:', linkErr.message);
-
-  // INSERT do plano de treino
-  const { error: workoutErr } = await sb.from('workout_plans').insert({
-    assessment_id:   assessment.id,
-    professional_id: profId,
-    student_id:      studentId,
-    plan:            workoutPlan || [],
-    edited_manually: false,
+    p_imc:           parseFloat(imc.toFixed(2)),
+    p_tmb:           parseFloat(tmb.toFixed(2)),
+    p_tdee:          parseInt(tdee)   || null,
+    p_agua_ml:       parseInt(aguaML) || null,
+    p_imc_categoria: imcStatus(imc).lbl,
+    p_workout_plan:  workoutPlan || [],
   });
 
-  if (workoutErr) {
-    console.warn('[Vitalis] Aviso: treino não salvo:', workoutErr.message);
-  } else {
-    console.log('[Vitalis] Treino salvo com sucesso.');
+  if (error) {
+    console.error('[Vitalis] Erro no RPC:', error);
+    toast(`Erro ao salvar: ${error.message}`);
+    return;
   }
 
+  if (!data || !data.success) {
+    console.error('[Vitalis] RPC retornou falha:', data);
+    toast(`Erro: ${data?.error || 'resposta inválida do servidor'}`);
+    return;
+  }
+
+  console.log('[Vitalis] Avaliação salva com sucesso! ID:', data.assessment_id);
   clearDraft();
-  console.log('[Vitalis] Avaliação completa e salva.');
 }
 
 // ── RESUMO ────────────────────────────────────────────────────
