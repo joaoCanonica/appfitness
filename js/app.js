@@ -264,6 +264,10 @@ async function openProfileEdit() {
   document.getElementById('mp-name').value    = currentProf.name || '';
   document.getElementById('mp-academy').value = currentProf.academy_name || '';
   document.getElementById('mp-phone').value   = currentProf.phone || '';
+  const logoPreview = document.getElementById('mp-logo-preview');
+  const logoCurrent = document.getElementById('mp-logo-current');
+  if (logoPreview) { logoPreview.style.display = 'none'; logoPreview.src = ''; }
+  if (logoCurrent) logoCurrent.textContent = currentProf?.logo_url ? 'Logo atual salvo ✓' : 'Nenhum logo enviado';
   openModal('modal-profile');
 }
 
@@ -271,15 +275,30 @@ async function saveProfile() {
   const name    = document.getElementById('mp-name').value.trim();
   const academy = document.getElementById('mp-academy').value.trim();
   const phone   = document.getElementById('mp-phone').value.trim();
+  const logoInput = document.getElementById('mp-logo-input');
   if (!name) { toast('Informe seu nome'); return; }
 
+  let logoUrl = currentProf?.logo_url || null;
+
+  // Faz upload do logo se selecionado
+  if (logoInput?.files?.length) {
+    const file = logoInput.files[0];
+    const ext  = file.name.split('.').pop();
+    const path = `logos/${currentProf.id}.${ext}`;
+    const { error: upErr } = await sb.storage.from('student-docs').upload(path, file, { upsert: true });
+    if (upErr) { toast('Erro ao enviar logo: ' + upErr.message); return; }
+    const { data: urlData } = sb.storage.from('student-docs').getPublicUrl(path);
+    logoUrl = urlData.publicUrl;
+  }
+
   const { error } = await sb.from('professionals')
-    .update({ name, academy_name: academy || null, phone: phone || null })
+    .update({ name, academy_name: academy || null, phone: phone || null, logo_url: logoUrl })
     .eq('id', currentProf.id);
 
   if (error) { toast('Erro ao salvar'); return; }
-  currentProf.name = name;
+  currentProf.name         = name;
   currentProf.academy_name = academy;
+  currentProf.logo_url     = logoUrl;
   closeModal('modal-profile');
   await loadProfessional();
   toast('Perfil atualizado');
@@ -1340,6 +1359,14 @@ async function processResults() {
     await saveAssessmentToSupabase(d, imc, tmb, tdee, aguaML, workoutPlan);
   }
 
+  const statusEl = document.getElementById('res-save-status');
+  if (statusEl) {
+    statusEl.textContent = LINK_TOKEN
+      ? '✓ Avaliação enviada ao seu profissional'
+      : 'Avaliação Concluída';
+    statusEl.style.color = LINK_TOKEN ? 'var(--green)' : '';
+  }
+
   show('s-res');
 }
 
@@ -1608,17 +1635,17 @@ function buildSummary() {
 }
 
 // ── PDF ───────────────────────────────────────────────────────
-function exportPDF() {
+async function exportPDF() {
   if (!fd || !fd.nome) { toast('Complete a avaliação primeiro'); return; }
-  generatePDF(fd, currentProf);
+  await generatePDF(fd, currentProf);
 }
 
-function exportAssessmentPDF() {
+async function exportAssessmentPDF() {
   if (!currentAssessment) return;
-  generatePDF(currentAssessment, currentProf);
+  await generatePDF(currentAssessment, currentProf);
 }
 
-function generatePDF(data, prof) {
+async function generatePDF(data, prof) {
   try {
     const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
     if (!jsPDF) { toast('Erro: jsPDF não carregado'); return; }
@@ -1643,23 +1670,49 @@ function generatePDF(data, prof) {
     const accent = prof?.primary_color || '#6366F1';
     const [ar,ag,ab] = hex2rgb(accent);
 
-    // ── Cabeçalho
+    // ── Cabeçalho com logo
     doc.setFillColor(ar,ag,ab);
-    doc.rect(0, 0, pW, 64, 'F');
+    doc.rect(0, 0, pW, 72, 'F');
     doc.setTextColor(255,255,255);
+
+    // Tenta adicionar logo se existir
+    let logoLoaded = false;
+    if (prof?.logo_url) {
+      try {
+        await new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width; canvas.height = img.height;
+              canvas.getContext('2d').drawImage(img, 0, 0);
+              const fmt = prof.logo_url.toLowerCase().includes('.png') ? 'PNG' : 'JPEG';
+              doc.addImage(canvas.toDataURL(), fmt, m, 12, 48, 48);
+              logoLoaded = true;
+            } catch(e) {}
+            resolve();
+          };
+          img.onerror = resolve;
+          img.src = prof.logo_url;
+          setTimeout(resolve, 3000);
+        });
+      } catch(e) {}
+    }
+
+    const textX = logoLoaded ? m + 56 : m;
     doc.setFontSize(18);
     doc.setFont('helvetica','bold');
-    doc.text(prof?.academy_name || 'Vitalis', m, 36);
+    doc.text(prof?.academy_name || 'Vitalis', textX, 36);
     doc.setFontSize(10);
     doc.setFont('helvetica','normal');
-    doc.text('Avaliação Fitness', m, 52);
+    doc.text('Avaliação Fitness Personalizada', textX, 52);
 
-    // Data
     const dateStr = new Date().toLocaleDateString('pt-BR', {day:'2-digit',month:'long',year:'numeric'});
-    doc.setFontSize(10);
     doc.text(dateStr, pW - m, 36, { align:'right' });
+    if (prof?.phone) doc.text(prof.phone, pW - m, 52, { align:'right' });
 
-    y = 88;
+    y = 96;
     doc.setTextColor(0,0,0);
 
     // ── Nome e badge
@@ -1798,6 +1851,21 @@ function generatePDF(data, prof) {
         });
         y += 8;
       });
+    }
+
+    // ── Nota do profissional (se existir)
+    if (window._pdfProfNote && window._pdfProfNote.trim()) {
+      checkY(50);
+      doc.setFontSize(10);
+      doc.setFont('helvetica','bold');
+      doc.setTextColor(ar,ag,ab);
+      doc.text('Observações do Profissional', m, y);
+      y += 14;
+      doc.setFont('helvetica','normal');
+      doc.setTextColor(60,60,60);
+      const noteLines = doc.splitTextToSize(window._pdfProfNote, maxW);
+      noteLines.forEach(line => { checkY(14); doc.text(line, m, y); y += 13; });
+      y += 8;
     }
 
     // ── Rodapé
@@ -1960,20 +2028,73 @@ async function loadStudentDocs() {
 
   container.innerHTML = data.map(f => {
     const { data: urlData } = sb.storage.from('student-docs').getPublicUrl(`${path}/${f.name}`);
-    const size = f.metadata?.size ? (f.metadata.size / 1024).toFixed(0) + 'kb' : '';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)">
-      <div style="font-size:18px">📄</div>
+    const size   = f.metadata?.size ? (f.metadata.size / 1024).toFixed(0) + 'kb' : '';
+    const label  = f.name.replace(/^\d+_/, '');
+    const pubUrl = urlData.publicUrl;
+    return `
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)">
+      <div style="font-size:20px;flex-shrink:0">📄</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(f.name.replace(/^\d+_/, ''))}</div>
-        <div style="font-size:11px;color:var(--t3)">${size}</div>
+        <div style="font-size:13px;font-weight:500;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(label)}</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:2px">${size}</div>
       </div>
-      <a href="${urlData.publicUrl}" target="_blank" style="font-size:11px;font-weight:600;color:var(--a2);text-decoration:none;padding:5px 10px;border:1px solid var(--a-mid);border-radius:4px;background:var(--a-dim)">Abrir</a>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <a href="${pubUrl}" target="_blank"
+           style="font-size:11px;font-weight:600;color:var(--a2);text-decoration:none;padding:5px 10px;border:1px solid var(--a-mid);border-radius:4px;background:var(--a-dim)">
+          Abrir
+        </a>
+        <a href="${pubUrl}" download="${escHtml(label)}"
+           style="font-size:11px;font-weight:600;color:var(--t1);text-decoration:none;padding:5px 10px;border:1px solid var(--line-2);border-radius:4px;background:var(--bg-card)">
+          ↓
+        </a>
+        <button onclick="deleteStudentDoc('${escHtml(path + '/' + f.name)}')"
+           style="font-size:11px;font-weight:600;color:var(--red);padding:5px 10px;border:1px solid rgba(248,113,113,0.3);border-radius:4px;background:var(--r-dim);cursor:pointer;touch-action:manipulation">
+          ✕
+        </button>
+      </div>
     </div>`;
   }).join('');
 }
 
+async function deleteStudentDoc(filePath) {
+  if (!confirm('Remover este documento?')) return;
+  const { error } = await sb.storage.from('student-docs').remove([filePath]);
+  if (error) { toast('Erro ao remover'); return; }
+  toast('Documento removido');
+  await loadStudentDocs();
+}
+
+function previewLogo(input) {
+  if (!input.files?.length) return;
+  const file = input.files[0];
+  if (file.size > 2 * 1024 * 1024) { toast('Imagem muito grande (máx 2MB)'); input.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('mp-logo-preview');
+    if (img) { img.src = e.target.result; img.style.display = 'block'; }
+  };
+  reader.readAsDataURL(file);
+}
+
+function openPdfNoteModal() {
+  const inp = document.getElementById('pdf-note-input');
+  if (inp) inp.value = '';
+  openModal('modal-pdf-note');
+}
+
+async function confirmExportPDF() {
+  const note = document.getElementById('pdf-note-input')?.value?.trim() || '';
+  window._pdfProfNote = note;
+  closeModal('modal-pdf-note');
+  await exportAssessmentPDF();
+}
+
 window.uploadStudentPDF = uploadStudentPDF;
 window.loadStudentDocs  = loadStudentDocs;
+window.deleteStudentDoc = deleteStudentDoc;
+window.previewLogo = previewLogo;
+window.openPdfNoteModal  = openPdfNoteModal;
+window.confirmExportPDF  = confirmExportPDF;
 
 // Globals
 window.startForm       = startForm;

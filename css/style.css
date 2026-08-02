@@ -2180,3 +2180,78 @@ input[type=range]:focus::-webkit-slider-thumb {
 .pill-badge.g { background: var(--g-dim); color: var(--green) }
 .pill-badge.w { background: var(--am-dim); color: var(--amber) }
 .pill-badge.b { background: var(--r-dim); color: var(--red) }
+
+/* ── MELHORIAS VISUAIS v2.1 ──────────────────────────────── */
+
+/* Documentos — melhor espaçamento */
+#student-docs { padding: 0 20px 20px; }
+
+/* Settings — logo preview */
+#mp-logo-preview {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r8);
+  object-fit: cover;
+  border: 1px solid var(--line-2);
+}
+
+/* Modal PDF note — textarea maior */
+#pdf-note-input { height: 100px; line-height: 1.6; }
+
+/* Assessment card hover */
+.assessment-card {
+  transition: border-color 0.15s, transform 0.1s;
+}
+.assessment-card:active { transform: scale(0.99); }
+
+/* Student row — feedback tátil */
+.student-row { transition: background 0.12s; }
+.student-row:active { background: var(--bg-raised); }
+
+/* Stat cells — melhor contraste */
+.stat-val { line-height: 1; margin-top: 2px; }
+
+/* Docs — linha sem borda na última */
+#student-docs > div:last-child { border-bottom: none !important; }
+
+/* Bottom nav — indicador ativo mais visível */
+.nav-tab.active {
+  color: var(--a2);
+  font-weight: 600;
+}
+
+/* Btn primary — feedback mais responsivo */
+.btn-p:active { opacity: 0.85; transform: scale(0.97); }
+
+/* Score pill — legível em todos os temas */
+.score-pill { font-size: 12px; letter-spacing: 0.02em; }
+
+/* Toast — um pouco maior para legibilidade */
+.toast { font-size: 13.5px; padding: 11px 18px; }
+
+/* Tela de resultado do aluno — status de envio */
+.res-greeting {
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: color 0.3s;
+}
+
+/* Link card — melhor espaçamento */
+.link-url {
+  word-break: break-all;
+  line-height: 1.6;
+  padding: 8px;
+  background: var(--bg-inset);
+  border-radius: var(--r4);
+  margin-bottom: 12px;
+  font-size: 11px;
+}
+
+/* Editor de treino — campos mais claros */
+.ex-edit-name:focus { outline: none; color: var(--t1); }
+.ex-edit-sets:focus { border-color: var(--a); outline: none; }
+
+/* Seção de documentos — título mais destaque */
+#student-docs + .section-hdr .section-title,
+.section-title { letter-spacing: -0.01em; }

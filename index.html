@@ -211,7 +211,7 @@
         <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
         Aluno
       </button>
-      <button class="btn-sm" onclick="exportAssessmentPDF()" style="width:auto;padding:6px 12px">
+      <button class="btn-sm" onclick="openPdfNoteModal()" style="width:auto;padding:6px 12px">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
         PDF
       </button>
@@ -682,7 +682,7 @@
     <!-- RESULTS (aluno) -->
     <section class="scr" id="s-res">
       <div class="res-hdr">
-        <div class="res-greeting">Avaliação Concluída</div>
+        <div class="res-greeting" id="res-save-status">✓ Avaliação enviada ao profissional</div>
         <div class="res-name" id="r-nm">Usuário</div>
         <div class="score-pill good" id="r-badge">Peso Saudável</div>
       </div>
@@ -819,10 +819,40 @@
       <div class="fld"><label>Seu Nome</label><input type="text" id="mp-name" placeholder="Nome completo"></div>
       <div class="fld"><label>Academia / Consultório</label><input type="text" id="mp-academy" placeholder="Nome do seu negócio"></div>
       <div class="fld"><label>Telefone</label><input type="tel" id="mp-phone" placeholder="(00) 00000-0000" inputmode="tel"></div>
+      <div class="fld">
+        <label>Logo da Academia (PNG ou JPG, máx 2MB)</label>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:4px">
+          <img id="mp-logo-preview" src="" alt="" style="width:48px;height:48px;border-radius:8px;object-fit:cover;border:1px solid var(--line-2);display:none">
+          <label style="flex:1;padding:11px 14px;border-radius:var(--r8);border:1px dashed var(--line-2);background:var(--bg-card);color:var(--t3);font-size:13px;cursor:pointer;text-align:center;display:block">
+            Clique para selecionar imagem
+            <input type="file" id="mp-logo-input" accept="image/png,image/jpeg,image/jpg" style="display:none" onchange="previewLogo(this)">
+          </label>
+        </div>
+        <div id="mp-logo-current" style="font-size:11px;color:var(--t3);margin-top:6px"></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn-s" onclick="closeModal('modal-profile')">Cancelar</button>
       <button class="btn-p" onclick="saveProfile()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nota PDF -->
+<div class="modal-overlay" id="modal-pdf-note" onclick="if(event.target===this)closeModal('modal-pdf-note')">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-title">Gerar PDF</div>
+    <div class="modal-sub">Adicione uma observação opcional antes de exportar.</div>
+    <div class="modal-body">
+      <div class="fld">
+        <label>Observação do Profissional (opcional)</label>
+        <textarea id="pdf-note-input" placeholder="Ex: Parabéns pela evolução! Mantenha a consistência nos treinos e siga o plano alimentar..." style="height:100px"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-s" onclick="closeModal('modal-pdf-note')">Cancelar</button>
+      <button class="btn-p" onclick="confirmExportPDF()">Gerar PDF</button>
     </div>
   </div>
 </div>
