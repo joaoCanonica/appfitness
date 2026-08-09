@@ -1778,49 +1778,51 @@ async function generatePDF(data, prof) {
     const accent = prof?.primary_color || '#E87722';
     const [ar,ag,ab] = hex2rgb(accent);
 
-    // ── Cabeçalho com logo
-    doc.setFillColor(ar,ag,ab);
-    doc.rect(0, 0, pW, 72, 'F');
+    // ── Cabeçalho preto com linha na cor da marca
+    const HDR_H = 76;
+    const loadImgAsBase64 = (url) => new Promise((resolve) => {
+      if (!url) { resolve(null); return; }
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width; canvas.height = img.height;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          resolve({ data: canvas.toDataURL(), fmt: url.toLowerCase().includes('.png') ? 'PNG' : 'JPEG' });
+        } catch (e) { resolve(null); }
+      };
+      img.onerror = () => resolve(null);
+      img.src = url + '?t=' + Date.now();
+      setTimeout(() => resolve(null), 4000);
+    });
+    doc.setFillColor(10, 10, 10);
+    doc.rect(0, 0, pW, HDR_H, 'F');
+    doc.setFillColor(ar, ag, ab);
+    doc.rect(0, HDR_H - 3, pW, 3, 'F');
     doc.setTextColor(255,255,255);
 
-    // Tenta adicionar logo se existir
-    let logoLoaded = false;
-    if (prof?.logo_url) {
-      try {
-        await new Promise((resolve) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => {
-            try {
-              const canvas = document.createElement('canvas');
-              canvas.width = img.width; canvas.height = img.height;
-              canvas.getContext('2d').drawImage(img, 0, 0);
-              const fmt = prof.logo_url.toLowerCase().includes('.png') ? 'PNG' : 'JPEG';
-              doc.addImage(canvas.toDataURL(), fmt, m, 12, 48, 48);
-              logoLoaded = true;
-            } catch(e) {}
-            resolve();
-          };
-          img.onerror = resolve;
-          img.src = prof.logo_url;
-          setTimeout(resolve, 3000);
-        });
-      } catch(e) {}
+    const logoImg = await loadImgAsBase64(prof?.logo_url);
+    let textX = m;
+    if (logoImg) {
+      try { doc.addImage(logoImg.data, logoImg.fmt, m, 10, 54, 54); textX = m + 62; } catch (e) {}
     }
-
-    const textX = logoLoaded ? m + 56 : m;
-    doc.setFontSize(18);
+    doc.setFontSize(20);
     doc.setFont('helvetica','bold');
-    doc.text(prof?.academy_name || 'Vitalis', textX, 36);
-    doc.setFontSize(10);
-    doc.setFont('helvetica','normal');
-    doc.text('Avaliação Fitness Personalizada', textX, 52);
+    doc.text(prof?.academy_name || 'Prime House', textX, 36);
+    doc.setFontSize(9);
+    doc.setTextColor(ar, ag, ab);
+    doc.text('ACADEMIA · AVALIAÇÃO FITNESS', textX, 52);
 
     const dateStr = new Date().toLocaleDateString('pt-BR', {day:'2-digit',month:'long',year:'numeric'});
-    doc.text(dateStr, pW - m, 36, { align:'right' });
-    if (prof?.phone) doc.text(prof.phone, pW - m, 52, { align:'right' });
+    doc.setTextColor(180, 180, 180);
+    doc.text(dateStr, pW - m, 30, { align:'right' });
+    if (prof?.phone) doc.text(prof.phone, pW - m, 46, { align:'right' });
+    if (window._pdfExtraImg) {
+      try { doc.addImage(window._pdfExtraImg.data, window._pdfExtraImg.fmt, pW - m - 50, 10, 46, 54); } catch (e) {}
+    }
 
-    y = 96;
+    y = HDR_H + 24;
     doc.setTextColor(0,0,0);
 
     // ── Nome e badge
@@ -1845,7 +1847,7 @@ async function generatePDF(data, prof) {
     const metrics = [
       { lbl:'IMC', val: imc.toFixed(1), unit: imcS.cat },
       { lbl:'TMB', val: Math.round(data.tmb || calcTMB(data.peso,data.altura,data.idade,data.genero)).toLocaleString('pt-BR'), unit:'kcal/dia' },
-      { lbl:'TDEE', val: Math.round(data.tdee || 0).toLocaleString('pt-BR'), unit:'kcal/dia' },
+      { lbl:'TDEE', val: Math.round(data.tdee || (data.tmb || calcTMB(data.peso,data.altura,data.idade,data.genero)) * (actFactor[data.nivel||'intermediario'] || 1.55)).toLocaleString('pt-BR'), unit:'kcal/dia' },
       { lbl:'Hidratação', val: (data.agua_ml || Math.round((data.peso||70)*35)).toLocaleString('pt-BR'), unit:'ml/dia' },
     ];
 
@@ -1855,8 +1857,10 @@ async function generatePDF(data, prof) {
       const mx = m + col * (metW + 12);
       const my = y + row * 70;
 
-      doc.setFillColor(248,249,250);
-      doc.roundedRect(mx, my, metW, 58, 4, 4, 'F');
+      doc.setFillColor(ar, ag, ab);
+      doc.rect(mx, my, 3, 56, 'F');
+      doc.setFillColor(247,247,247);
+      doc.roundedRect(mx + 3, my, metW - 3, 56, 3, 3, 'F');
       doc.setFontSize(9);
       doc.setTextColor(140,140,140);
       doc.setFont('helvetica','bold');
@@ -1895,7 +1899,7 @@ async function generatePDF(data, prof) {
 
     // ── Análise
     const nome2 = data.nome;
-    const tmb2  = data.tmb || calcTMB(data.peso,data.altura,data.idade,data.genero);
+    const tmb2  = +data.tmb || Math.round(+calcTMB(+data.peso||70, +data.altura||170, +data.idade||25, data.genero||'masculino'));
     const tdee2 = +data.tdee || Math.round(+calcTMB(+data.peso||70, +data.altura||170, +data.idade||25, data.genero||'masculino') * (actFactor[data.nivel||'intermediario'] || 1.55));
     const aguaML2 = data.agua_ml || Math.round((data.peso||70)*35);
     const { fortes, atenc, rec } = buildAnalysis(
@@ -2006,20 +2010,22 @@ async function generatePDF(data, prof) {
     const totalPages = doc.internal.getNumberOfPages();
     for (let p = 1; p <= totalPages; p++) {
       doc.setPage(p);
-      doc.setFillColor(ar,ag,ab);
-      doc.rect(0, pH - 20, pW, 20, 'F');
-      doc.setFontSize(8);
-      doc.setTextColor(255,255,255);
+      doc.setFillColor(10, 10, 10);
+      doc.rect(0, pH - 28, pW, 28, 'F');
+      doc.setFillColor(ar, ag, ab);
+      doc.rect(0, pH - 30, pW, 2, 'F');
+      doc.setFontSize(7.5);
+      doc.setTextColor(180,180,180);
       const footLeft = prof?.academy_name || 'Prime House Academia';
       const footRight = `Página ${p} de ${totalPages}`;
-      doc.text(footLeft, m, pH - 7);
-      doc.text(footRight, pW - m, pH - 7, { align:'right' });
-      if (prof?.phone) doc.text(prof.phone, pW / 2, pH - 7, { align:'center' });
+      doc.text(footLeft, m, pH - 10);
+      doc.text(footRight, pW - m, pH - 10, { align:'right' });
+      if (prof?.phone) doc.text(prof.phone, pW / 2, pH - 10, { align:'center' });
     }
 
-    const safe = nome.replace(/[^a-zA-Z0-9 _-]/g,'').trim() || 'avaliacao';
-    doc.save(`${safe}_vitalis.pdf`);
-    toast('PDF gerado com sucesso');
+    const safe = nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_') || 'avaliacao';
+    doc.save(`${safe}_PrimeHouse.pdf`);
+    toast('PDF gerado com sucesso!');
   } catch(e) {
     console.error(e);
     toast('Erro ao gerar PDF');
@@ -2144,16 +2150,16 @@ document.addEventListener('touchend', function(e) {
 async function uploadStudentPDF(input) {
   if (!input.files?.length || !currentStudent || !currentProf) return;
   const file = input.files[0];
-  if (file.type !== 'application/pdf') { toast('Somente arquivos PDF'); return; }
-  if (file.size > 5 * 1024 * 1024) { toast('PDF muito grande (máx 5MB)'); return; }
+  if (file.size > 10 * 1024 * 1024) { toast('Arquivo muito grande (máx 10MB)'); return; }
 
-  toast('Enviando PDF...');
-  const path = `${currentProf.id}/${currentStudent.id}/${Date.now()}_${file.name}`;
+  toast('Enviando documento...');
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = `${currentProf.id}/${currentStudent.id}/${Date.now()}_${safeName}`;
 
   const { error } = await sb.storage.from('student-docs').upload(path, file, { upsert: false });
   if (error) { toast('Erro ao enviar: ' + error.message); return; }
 
-  toast('PDF enviado com sucesso!');
+  toast('Documento enviado!');
   await loadStudentDocs();
   input.value = '';
 }
@@ -2163,22 +2169,38 @@ async function loadStudentDocs() {
   const container = document.getElementById('student-docs');
   if (!container) return;
 
+  container.innerHTML = '<div style="padding:12px 0;font-size:12px;color:var(--t3)">Carregando...</div>';
   const path = `${currentProf.id}/${currentStudent.id}`;
   const { data, error } = await sb.storage.from('student-docs').list(path, { sortBy: { column: 'created_at', order: 'desc' } });
 
-  if (error || !data?.length) {
+  if (error) {
+    container.innerHTML = '<div style="font-size:13px;color:var(--red);padding:8px 0">Erro ao carregar documentos.</div>';
+    return;
+  }
+  const files = (data || []).filter(f => f.name !== '.emptyFolderPlaceholder');
+  if (!files.length) {
     container.innerHTML = '<div style="font-size:13px;color:var(--t3);padding:8px 0">Nenhum documento enviado.</div>';
     return;
   }
 
-  container.innerHTML = data.map(f => {
+  const fileIcon = (name) => {
+    const ext = name.split('.').pop().toLowerCase();
+    if (ext === 'pdf') return '📄';
+    if (['doc', 'docx'].includes(ext)) return '📝';
+    if (['xls', 'xlsx'].includes(ext)) return '📊';
+    if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) return '🖼️';
+    return '📎';
+  };
+  container.innerHTML = files.map(f => {
     const { data: urlData } = sb.storage.from('student-docs').getPublicUrl(`${path}/${f.name}`);
-    const size   = f.metadata?.size ? (f.metadata.size / 1024).toFixed(0) + 'kb' : '';
+    const size = f.metadata?.size ? (f.metadata.size / 1024 < 1024
+      ? (f.metadata.size / 1024).toFixed(0) + ' KB'
+      : (f.metadata.size / 1024 / 1024).toFixed(1) + ' MB') : '';
     const label  = f.name.replace(/^\d+_/, '');
     const pubUrl = urlData.publicUrl;
     return `
     <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)">
-      <div style="font-size:20px;flex-shrink:0">📄</div>
+      <div style="font-size:22px;flex-shrink:0;width:28px;text-align:center">${fileIcon(f.name)}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(label)}</div>
         <div style="font-size:11px;color:var(--t3);margin-top:2px">${size}</div>
@@ -2224,7 +2246,33 @@ function previewLogo(input) {
 function openPdfNoteModal() {
   const inp = document.getElementById('pdf-note-input');
   if (inp) inp.value = '';
+  clearPdfExtraImg();
+  window._pdfProfNote = '';
   openModal('modal-pdf-note');
+}
+
+function previewPdfExtraImg(input) {
+  if (!input.files?.length) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = e => {
+    const preview = document.getElementById('pdf-extra-img-preview');
+    const clearBtn = document.getElementById('pdf-extra-img-clear');
+    if (preview) { preview.src = e.target.result; preview.style.display = 'block'; }
+    if (clearBtn) clearBtn.style.display = '';
+    window._pdfExtraImg = { data: e.target.result, fmt: file.name.toLowerCase().includes('.png') ? 'PNG' : 'JPEG' };
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPdfExtraImg() {
+  window._pdfExtraImg = null;
+  const preview = document.getElementById('pdf-extra-img-preview');
+  const clearBtn = document.getElementById('pdf-extra-img-clear');
+  const inp = document.getElementById('pdf-extra-img-input');
+  if (preview) { preview.src = ''; preview.style.display = 'none'; }
+  if (clearBtn) clearBtn.style.display = 'none';
+  if (inp) inp.value = '';
 }
 
 async function confirmExportPDF() {
@@ -2290,6 +2338,8 @@ window.previewStudentPhoto = previewStudentPhoto;
 window.resetStudentPhotoPreview = resetStudentPhotoPreview;
 window.openPdfNoteModal  = openPdfNoteModal;
 window.confirmExportPDF  = confirmExportPDF;
+window.previewPdfExtraImg = previewPdfExtraImg;
+window.clearPdfExtraImg = clearPdfExtraImg;
 
 // Globals
 window.startForm       = startForm;
