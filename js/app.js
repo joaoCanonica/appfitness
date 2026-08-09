@@ -49,6 +49,7 @@ const sunSVG  = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
   if (session) {
     currentUser = session.user;
     await loadProfessional();
+    await checkSchemaHealth();
     showView('view-dash');
   } else {
     showView('view-auth');
@@ -128,6 +129,7 @@ async function doLogin() {
   const btn   = document.getElementById('btn-login');
 
   if (!email || !pass) { showErr(errEl, 'Preencha e-mail e senha'); return; }
+  if (pass.length < 6) { showErr(errEl, 'Senha deve ter pelo menos 6 caracteres'); return; }
   errEl.classList.remove('on');
   document.getElementById('login-info')?.classList.remove('on');
   btn.innerHTML = '<div class="spin-sm"></div>';
@@ -257,6 +259,17 @@ async function loadProfessional() {
   if (cp) cp.value = currentProf.primary_color || '#6366F1';
 
   await loadStudents();
+}
+
+// Detecta erro de schema cache do Supabase e orienta o usuário
+async function checkSchemaHealth() {
+  try {
+    const { error } = await sb.from('students').select('photo_url').limit(1);
+    if (error && error.message && error.message.includes('schema cache')) {
+      console.warn('[Vitalis] Schema cache desatualizado — recarregue a página');
+      toast('Atualização necessária — recarregue a página (F5)');
+    }
+  } catch(e) {}
 }
 
 async function openProfileEdit() {
@@ -451,7 +464,7 @@ async function saveStudent() {
     professional_id: currentProf.id,
     name, email: email || null, phone: phone || null,
     birth_date: birth || null, notes: notes || null,
-    photo_url: photoUrl,
+    ...(photoUrl !== undefined ? { photo_url: photoUrl } : {}),
   };
 
   let error;
@@ -1103,6 +1116,9 @@ function validate(s) {
 }
 
 function nextStp() {
+  // Rate limit frontend: bloqueia clique duplo no botão final
+  if (step === TOTAL && window._submitting) return;
+  if (step === TOTAL) window._submitting = true;
   if (!validate(step)) return;
   if (step < TOTAL) {
     step++;
@@ -1446,6 +1462,7 @@ async function processResults() {
   }
 
   show('s-res');
+  window._submitting = false;
 }
 
 // ── ANÁLISE ───────────────────────────────────────────────────
@@ -2058,6 +2075,7 @@ function shareWA() {
 // ── RESET AVALIAÇÃO ───────────────────────────────────────────
 function resetAssessment() {
   fd = {}; step = 1;
+  window._submitting = false;
   ['f-nome','f-idade','f-altura','f-peso','f-pdej','f-mot','f-obj-curto','f-obj-longo','f-pressao'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
@@ -2091,10 +2109,14 @@ function renderListTo(id, items) {
 }
 
 function escHtml(s) {
-  if (typeof s !== 'string') return String(s || '');
-  const d = document.createElement('div');
-  d.appendChild(document.createTextNode(s));
-  return d.innerHTML;
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+    .replace(/\//g, '&#x2F;');
 }
 
 function openModal(id)  { const el = document.getElementById(id); if (el) el.classList.add('on'); }
@@ -2235,6 +2257,30 @@ function resetStudentPhotoPreview(name, photoUrl = '') {
   const input = document.getElementById('ms-photo-input');
   if (input) input.value = '';
 }
+
+// Segurança: avisa ao sair com sessão ativa (para computador compartilhado da recepção)
+window.addEventListener('beforeunload', function() {
+  if (currentUser && !LINK_TOKEN) {
+    try { sessionStorage.clear(); } catch(ex) {}
+  }
+});
+
+// Logout automático após 8 horas inativo (segurança recepção)
+let _inactivityTimer = null;
+const INACTIVITY_LIMIT = 8 * 60 * 60 * 1000;
+
+function resetInactivityTimer() {
+  clearTimeout(_inactivityTimer);
+  if (!currentUser || LINK_TOKEN) return;
+  _inactivityTimer = setTimeout(async () => {
+    toast('Sessão encerrada por inatividade');
+    await sb.auth.signOut();
+  }, INACTIVITY_LIMIT);
+}
+
+['click','keydown','touchstart','scroll'].forEach(ev => {
+  document.addEventListener(ev, resetInactivityTimer, { passive: true });
+});
 
 window.uploadStudentPDF = uploadStudentPDF;
 window.loadStudentDocs  = loadStudentDocs;

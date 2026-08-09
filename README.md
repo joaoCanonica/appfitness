@@ -8,6 +8,12 @@ Plataforma inteligente de avaliação e planejamento fitness com integração Su
 ALTER TABLE students ADD COLUMN IF NOT EXISTS photo_url TEXT;
 ```
 
+## Segurança — configurar no Supabase Dashboard
+
+1. Acesse: Authentication → Passwords
+2. Ative: "Enable leaked password protection"
+3. Mínimo de caracteres: 8
+
 ## Ícones PWA
 
 Os ícones já são servidos pela pasta [`icons/`](icons/). Para recriá-los a partir da logo, envie `primelogo.jpg` ao [PWA Builder Image Generator](https://www.pwabuilder.com/imageGenerator), gere `icon-192.png` e `icon-512.png` e coloque ambos em `/icons/`.
