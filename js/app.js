@@ -10,7 +10,7 @@ let allStudents    = [];
 let allAssessments = [];
 let fd = {};
 let step = 1;
-const TOTAL = 9;
+const TOTAL = 10;
 
 // ── TEMA ──────────────────────────────────────────────────────
 const moonSVG = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>';
@@ -379,9 +379,12 @@ function renderStudentList() {
 
   container.innerHTML = filtered.map(s => {
     const initials = s.name.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase();
+    const avatarContent = s.photo_url
+      ? `<img src="${s.photo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'" alt="">`
+      : initials;
     return `
       <div class="student-row" onclick="openStudentDetail('${s.id}')">
-        <div class="student-avatar">${initials}</div>
+        <div class="student-avatar" style="${s.photo_url ? 'padding:0;overflow:hidden' : ''}">${avatarContent}</div>
         <div class="student-info">
           <div class="student-name">${escHtml(s.name)}</div>
           <div class="student-meta">${s.email || s.phone || 'Sem contato'}</div>
@@ -401,6 +404,7 @@ function openAddStudent() {
   });
   document.getElementById('ms-birth').value = '';
   currentStudent = null;
+  resetStudentPhotoPreview('');
   openModal('modal-student');
 }
 
@@ -412,6 +416,7 @@ function openEditStudent() {
   document.getElementById('ms-phone').value = currentStudent.phone || '';
   document.getElementById('ms-birth').value = currentStudent.birth_date || '';
   document.getElementById('ms-notes').value = currentStudent.notes || '';
+  resetStudentPhotoPreview(currentStudent.name, currentStudent.photo_url);
   openModal('modal-student');
 }
 
@@ -429,13 +434,24 @@ async function saveStudent() {
   btn.disabled = true;
   btn.textContent = 'Salvando...';
 
+  let photoUrl = currentStudent?.photo_url || null;
+  if (window._pendingStudentPhoto) {
+    const file = window._pendingStudentPhoto;
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `photos/${currentProf.id}/${Date.now()}.${ext}`;
+    const { error: upErr } = await sb.storage.from('student-docs').upload(path, file, { upsert: true });
+    if (!upErr) {
+      const { data: urlData } = sb.storage.from('student-docs').getPublicUrl(path);
+      photoUrl = urlData.publicUrl;
+    }
+    window._pendingStudentPhoto = null;
+  }
+
   const payload = {
     professional_id: currentProf.id,
-    name,
-    email: email || null,
-    phone: phone || null,
-    birth_date: birth || null,
-    notes: notes || null
+    name, email: email || null, phone: phone || null,
+    birth_date: birth || null, notes: notes || null,
+    photo_url: photoUrl,
   };
 
   let error;
@@ -449,7 +465,7 @@ async function saveStudent() {
   btn.textContent = 'Salvar';
 
   if (error) {
-    toast('Erro ao salvar aluno: ' + (error.message || 'tente novamente'));
+    toast('Erro ao salvar: ' + (error.message || 'tente novamente'));
     console.error('saveStudent error:', error);
     return;
   }
@@ -518,6 +534,7 @@ async function loadStudentAssessments() {
 
   if (!allAssessments.length) {
     container.innerHTML = `<div class="empty-state" style="padding:24px 0"><div class="empty-sub">Nenhuma avaliação ainda. Envie o link para o aluno preencher.</div></div>`;
+    renderEvolutionChart([]);
     return;
   }
 
@@ -551,45 +568,32 @@ async function loadStudentAssessments() {
     evolDiv.innerHTML = `<span style="font-weight:600;color:var(--t1)">Evolução</span> &nbsp;Peso: <span style="color:${cor};font-weight:600">${sinal}${Math.abs(diffPeso)}kg</span> &nbsp;·&nbsp; IMC: <span style="color:${cor};font-weight:600">${sinal}${Math.abs(diffImc)}</span> <span style="color:var(--t3);font-size:11px">(vs avaliação anterior)</span>`;
     container.insertBefore(evolDiv, container.firstChild);
   }
+  renderEvolutionChart(allAssessments);
 }
 
-let evoChartInstance = null;
-function renderEvolutionChart() {
-  const ctx = document.getElementById('evoChart').getContext('2d');
-  
-  const sorted = [...allAssessments].sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
-  const labels = sorted.map(a => new Date(a.created_at).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'}));
-  const pesoData = sorted.map(a => a.peso);
-  const imcData = sorted.map(a => a.imc);
-  
-  if (evoChartInstance) evoChartInstance.destroy();
-  
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+let _evolutionChart = null;
+function renderEvolutionChart(assessments) {
+  const block = document.getElementById('evolution-chart-block');
+  if (!assessments || assessments.length < 2 || !window.Chart) { block?.classList.add('hide'); return; }
+  const sorted = [...assessments].reverse();
+  const labels = sorted.map(a => new Date(a.created_at).toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }));
+  const pesos = sorted.map(a => +a.peso || null);
+  const bfs = sorted.map(a => +a.bf_estimado || null);
+  const cints = sorted.map(a => +a.cintura || null);
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--a').trim() || '#6366F1';
+  const green = getComputedStyle(document.documentElement).getPropertyValue('--green').trim() || '#22D3A0';
+  const amber = getComputedStyle(document.documentElement).getPropertyValue('--amber').trim() || '#F59E0B';
+  const datasets = [{ label:'Peso (kg)', data:pesos, borderColor:accent, backgroundColor:accent + '22', tension:.4, pointRadius:4, yAxisID:'y' }];
+  if (bfs.some(v => v !== null)) datasets.push({ label:'% Gordura', data:bfs, borderColor:amber, backgroundColor:amber + '22', tension:.4, pointRadius:4, yAxisID:'y2' });
+  if (cints.some(v => v !== null)) datasets.push({ label:'Cintura (cm)', data:cints, borderColor:green, backgroundColor:green + '22', tension:.4, pointRadius:4, yAxisID:'y' });
+  const ctx = document.getElementById('evolution-chart');
+  if (!ctx) return;
+  if (_evolutionChart) _evolutionChart.destroy();
+  const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  const gridColor = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)';
   const textColor = isDark ? '#7E8898' : '#4B5563';
-  const pColor = '#6366F1';
-  const imcColor = '#22D3A0';
-  
-  evoChartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Peso (kg)', data: pesoData, borderColor: pColor, backgroundColor: pColor+'1A', tension: 0.3, yAxisID: 'y' },
-        { label: 'IMC', data: imcData, borderColor: imcColor, backgroundColor: imcColor+'1A', tension: 0.3, yAxisID: 'y1' }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: textColor, font: { size: 10 } } } },
-      scales: {
-        x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 } } },
-        y: { type: 'linear', display: true, position: 'left', grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 } } },
-        y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { color: textColor, font: { size: 10 } } }
-      }
-    }
-  });
+  _evolutionChart = new Chart(ctx, { type:'line', data:{ labels, datasets }, options:{ responsive:true, interaction:{ mode:'index', intersect:false }, plugins:{ legend:{ labels:{ color:textColor, font:{ size:11 }, boxWidth:12 } } }, scales:{ x:{ ticks:{ color:textColor, font:{ size:10 } }, grid:{ color:gridColor } }, y:{ position:'left', ticks:{ color:textColor, font:{ size:10 } }, grid:{ color:gridColor } }, y2:{ position:'right', ticks:{ color:textColor, font:{ size:10 } }, grid:{ display:false } } } } });
+  block?.classList.remove('hide');
 }
 
 // ── LINK DE AVALIAÇÃO ─────────────────────────────────────────
@@ -677,6 +681,23 @@ async function openAssessmentView(assessmentId) {
   document.getElementById('av-tmb').textContent    = Math.round(assessment.tmb).toLocaleString('pt-BR');
   document.getElementById('av-tdee').textContent   = Math.round(assessment.tdee).toLocaleString('pt-BR');
   document.getElementById('av-agua').textContent   = assessment.agua_ml.toLocaleString('pt-BR');
+
+  const advMetrics = document.getElementById('av-met-adv');
+  if (assessment.bf_estimado) {
+    const bfS = bfStatus(+assessment.bf_estimado, assessment.genero);
+    const whtrS = whtrStatus(+assessment.whtr);
+    document.getElementById('av-bf').textContent = (+assessment.bf_estimado).toFixed(1) + '%';
+    document.getElementById('av-bf-tag').textContent = bfS?.lbl || '';
+    document.getElementById('av-bf-tag').className = `met-tag ${bfS?.cls || 'g'}`;
+    document.getElementById('av-magra').textContent = assessment.massa_magra ?? '--';
+    document.getElementById('av-gorda').textContent = assessment.massa_gorda ?? '--';
+    document.getElementById('av-ffmi').textContent = assessment.ffmi ?? '--';
+    document.getElementById('av-whtr').textContent = assessment.whtr ?? '--';
+    document.getElementById('av-whtr-tag').textContent = whtrS?.lbl || '';
+    document.getElementById('av-whtr-tag').className = `met-tag ${whtrS?.cls || 'g'}`;
+    document.getElementById('av-whr').textContent = assessment.whr ?? '--';
+    advMetrics?.classList.remove('hide');
+  } else advMetrics?.classList.add('hide');
 
   const badge = document.getElementById('av-badge');
   badge.textContent = imcS.lbl;
@@ -1263,6 +1284,9 @@ function collectData() {
     frutas:     selVal('ow-frut') || 'diario',
     indust:     selVal('ow-ind') || 'raramente',
     aler:       getTags('tb-aler'),
+    cintura:    parseFloat(document.getElementById('f-cintura')?.value) || null,
+    quadril:    parseFloat(document.getElementById('f-quadril')?.value) || null,
+    pescoco:    parseFloat(document.getElementById('f-pescoco')?.value) || null,
     // Disponibilidade
     daysSel:    selDays(),
     tempo:      +(selVal('ow-tmp') || 60),
@@ -1273,6 +1297,39 @@ function collectData() {
 // ── MÉTRICAS ──────────────────────────────────────────────────
 function calcIMC(p, h)       { return p / ((h/100) * (h/100)) }
 function calcTMB(p, h, i, g) { return g === 'feminino' ? 447.593+9.247*p+3.098*h-4.330*i : 88.362+13.397*p+4.799*h-5.677*i }
+
+// ── MÉTRICAS AVANÇADAS ────────────────────────────────────────
+function calcBFNavy(genero, altura, cintura, pescoco, quadril) {
+  if (!cintura || !pescoco || !altura) return null;
+  try {
+    if (genero === 'feminino') {
+      if (!quadril) return null;
+      return +(495 / (1.29579 - 0.35004 * Math.log10(cintura + quadril - pescoco) + 0.22100 * Math.log10(altura)) - 450).toFixed(1);
+    }
+    return +(495 / (1.0324 - 0.19077 * Math.log10(cintura - pescoco) + 0.15456 * Math.log10(altura)) - 450).toFixed(1);
+  } catch(e) { return null; }
+}
+function calcBodyComp(peso, bf) {
+  if (!bf || bf <= 0 || bf >= 100) return { massaGorda: null, massaMagra: null };
+  const massaGorda = +((peso * bf) / 100).toFixed(1);
+  return { massaGorda, massaMagra: +(peso - massaGorda).toFixed(1) };
+}
+function calcFFMI(massaMagra, altura) { return !massaMagra || !altura ? null : +(massaMagra / ((altura / 100) ** 2)).toFixed(1); }
+function calcWHtR(cintura, altura) { return !cintura || !altura ? null : +(cintura / altura).toFixed(2); }
+function calcWHR(cintura, quadril) { return !cintura || !quadril ? null : +(cintura / quadril).toFixed(2); }
+function whtrStatus(v) {
+  if (!v) return null;
+  if (v < .40) return { lbl:'Muito magro', cls:'w' };
+  if (v < .50) return { lbl:'Saudável', cls:'g' };
+  if (v < .60) return { lbl:'Excesso', cls:'w' };
+  return { lbl:'Risco alto', cls:'b' };
+}
+function bfStatus(bf, genero) {
+  if (!bf) return null;
+  const limits = genero === 'feminino' ? [[14,'Essencial','w'],[21,'Atlético','g'],[25,'Fitness','g'],[32,'Aceitável','w']] : [[6,'Essencial','w'],[14,'Atlético','g'],[18,'Fitness','g'],[25,'Aceitável','w']];
+  const found = limits.find(([limit]) => bf < limit);
+  return found ? { lbl:found[1], cls:found[2] } : { lbl:'Obesidade', cls:'b' };
+}
 const actFactor = { iniciante:1.375, intermediario:1.55, avancado:1.725 };
 
 function imcStatus(v) {
@@ -1331,6 +1388,12 @@ async function processResults() {
   const tmb  = calcTMB(d.peso, d.altura, d.idade, d.genero);
   const tdee = Math.round(tmb * (actFactor[d.nivel] || 1.55));
   const aguaML = Math.round(d.peso * 35);
+  const bf = calcBFNavy(d.genero, d.altura, d.cintura, d.pescoco, d.quadril);
+  const { massaGorda, massaMagra } = calcBodyComp(d.peso, bf);
+  const ffmi = calcFFMI(massaMagra, d.altura);
+  const whtr = calcWHtR(d.cintura, d.altura);
+  const whr = calcWHR(d.cintura, d.quadril);
+  Object.assign(d, { _bf:bf, _massaGorda:massaGorda, _massaMagra:massaMagra, _ffmi:ffmi, _whtr:whtr, _whr:whr });
   const imcS = imcStatus(imc);
 
   // Preenche UI
@@ -1344,6 +1407,21 @@ async function processResults() {
   if (imcBg) { imcBg.textContent = imcS.lbl; imcBg.className = `met-tag ${imcS.cls}`; }
   const badge = document.getElementById('r-badge');
   if (badge) { badge.textContent = imcS.lbl; badge.className = `score-pill ${imcS.cls === 'g' ? 'good' : imcS.cls === 'w' ? 'ok' : 'bad'}`; }
+  const advGrid = document.getElementById('met-grid-adv');
+  if (bf !== null) {
+    const bfS = bfStatus(bf, d.genero), whtrS = whtrStatus(whtr);
+    document.getElementById('r-bf').textContent = bf + '%';
+    document.getElementById('r-bf-tag').textContent = bfS?.lbl || '';
+    document.getElementById('r-bf-tag').className = `met-tag ${bfS?.cls || 'g'}`;
+    document.getElementById('r-magra').textContent = massaMagra + 'kg';
+    document.getElementById('r-gorda').textContent = massaGorda + 'kg';
+    document.getElementById('r-ffmi').textContent = ffmi ?? '--';
+    document.getElementById('r-whtr').textContent = whtr ?? '--';
+    document.getElementById('r-whtr-tag').textContent = whtrS?.lbl || '';
+    document.getElementById('r-whtr-tag').className = `met-tag ${whtrS?.cls || 'g'}`;
+    document.getElementById('r-whr').textContent = whr ?? '--';
+    advGrid?.classList.remove('hide');
+  } else advGrid?.classList.add('hide');
 
   const { fortes, atenc, rec } = buildAnalysis(d, imc, tmb, tdee, aguaML);
   renderListTo('r-fortes', fortes);
@@ -1579,6 +1657,15 @@ async function saveAssessmentToSupabase(d, imc, tmb, tdee, aguaML, workoutPlan) 
     p_agua_ml:       parseInt(aguaML) || null,
     p_imc_categoria: imcStatus(imc).lbl,
     p_workout_plan:  workoutPlan || [],
+    p_cintura:       d.cintura || null,
+    p_quadril:       d.quadril || null,
+    p_pescoco:       d.pescoco || null,
+    p_bf_estimado:   d._bf || null,
+    p_massa_gorda:   d._massaGorda || null,
+    p_massa_magra:   d._massaMagra || null,
+    p_ffmi:          d._ffmi || null,
+    p_whtr:          d._whtr || null,
+    p_whr:           d._whr || null,
   });
 
   if (error) {
@@ -1609,8 +1696,11 @@ function buildSummary() {
   const dias  = document.getElementById('f-dias').value;
   const loc   = selVal('og-loc') || '—';
 
-  document.getElementById('st9').innerHTML = `
-    <div class="stp-eyebrow">Etapa 9</div>
+  const cintura = document.getElementById('f-cintura')?.value;
+  const quadril = document.getElementById('f-quadril')?.value;
+  const pescoco = document.getElementById('f-pescoco')?.value;
+  document.getElementById('st10').innerHTML = `
+    <div class="stp-eyebrow">Etapa 10</div>
     <div class="stp-t">Confirmar Dados</div>
     <div class="stp-s">Revise antes de processar sua avaliação.</div>
     <div class="sum-block">
@@ -1628,6 +1718,7 @@ function buildSummary() {
       <div class="sum-row"><span class="s-lbl">Dias / semana</span><span class="s-val">${dias}</span></div>
       <div class="sum-row"><span class="s-lbl">Local</span><span class="s-val">${locLabel[loc]||loc}</span></div>
     </div>
+    ${(cintura || quadril || pescoco) ? `<div class="sum-block" style="margin-top:8px"><div class="sum-head">Medidas Corporais</div>${cintura ? `<div class="sum-row"><span class="s-lbl">Cintura</span><span class="s-val">${cintura} cm</span></div>` : ''}${quadril ? `<div class="sum-row"><span class="s-lbl">Quadril</span><span class="s-val">${quadril} cm</span></div>` : ''}${pescoco ? `<div class="sum-row"><span class="s-lbl">Pescoço</span><span class="s-val">${pescoco} cm</span></div>` : ''}</div>` : ''}
     <div class="notice-local" style="margin-top:12px">
       <span>⚿</span>
       <span>Dados salvos com segurança no sistema do seu profissional.</span>
@@ -1667,7 +1758,7 @@ async function generatePDF(data, prof) {
       return [r,g,b];
     };
 
-    const accent = prof?.primary_color || '#6366F1';
+    const accent = prof?.primary_color || '#E87722';
     const [ar,ag,ab] = hex2rgb(accent);
 
     // ── Cabeçalho com logo
@@ -1811,6 +1902,33 @@ async function generatePDF(data, prof) {
       imc, +tmb2, +tdee2, +aguaML2
     );
 
+    // ── Métricas avançadas (se existirem)
+    if (data.bf_estimado || data._bf) {
+      const bf2 = data.bf_estimado || data._bf;
+      const mg = data.massa_gorda || data._massaGorda;
+      const mm = data.massa_magra || data._massaMagra;
+      const fi = data.ffmi || data._ffmi;
+      const wr = data.whtr || data._whtr;
+      const wq = data.whr || data._whr;
+      checkY(80);
+      doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(ar,ag,ab);
+      doc.text('Composição Corporal', m, y); y += 14;
+      const advMetrics = [
+        ['% Gordura (Marinha EUA)', bf2 ? bf2 + '%' : '--'], ['Massa Gorda', mg ? mg + 'kg' : '--'],
+        ['Massa Magra', mm ? mm + 'kg' : '--'], ['FFMI', fi ? String(fi) : '--'],
+        ['WHtR (Cin/Alt)', wr ? String(wr) : '--'], ['WHR (Cin/Quad)', wq ? String(wq) : '--'],
+      ].filter(([, value]) => value !== '--');
+      const mW2 = (maxW - 8) / 2;
+      advMetrics.forEach(([lbl, val], idx) => {
+        const col = idx % 2, row = Math.floor(idx / 2), mx = m + col * (mW2 + 8), my = y + row * 52;
+        doc.setFillColor(ar,ag,ab); doc.rect(mx, my - 2, 2, 40, 'F');
+        doc.setFillColor(248,249,250); doc.roundedRect(mx + 4, my - 2, mW2 - 4, 40, 3, 3, 'F');
+        doc.setFontSize(8); doc.setTextColor(140,140,140); doc.setFont('helvetica','bold'); doc.text(lbl.toUpperCase(), mx + 10, my + 10);
+        doc.setFontSize(16); doc.setTextColor(20,20,20); doc.text(val, mx + 10, my + 28);
+      });
+      y += Math.ceil(advMetrics.length / 2) * 52 + 12;
+    }
+
     writeSection('Pontos Fortes', fortes, [5, 150, 105]);
     writeSection('Pontos de Atenção', atenc, [180, 120, 0]);
     writeSection('Recomendações', rec, [ar,ag,ab]);
@@ -1868,13 +1986,18 @@ async function generatePDF(data, prof) {
       y += 8;
     }
 
-    // ── Rodapé
     const totalPages = doc.internal.getNumberOfPages();
     for (let p = 1; p <= totalPages; p++) {
       doc.setPage(p);
+      doc.setFillColor(ar,ag,ab);
+      doc.rect(0, pH - 20, pW, 20, 'F');
       doc.setFontSize(8);
-      doc.setTextColor(180,180,180);
-      doc.text(`Gerado pelo Vitalis${prof?.name ? ' · ' + prof.name : ''} · Página ${p} de ${totalPages}`, pW/2, pH - 20, { align:'center' });
+      doc.setTextColor(255,255,255);
+      const footLeft = prof?.academy_name || 'Prime House Academia';
+      const footRight = `Página ${p} de ${totalPages}`;
+      doc.text(footLeft, m, pH - 7);
+      doc.text(footRight, pW - m, pH - 7, { align:'right' });
+      if (prof?.phone) doc.text(prof.phone, pW / 2, pH - 7, { align:'center' });
     }
 
     const safe = nome.replace(/[^a-zA-Z0-9 _-]/g,'').trim() || 'avaliacao';
@@ -2089,10 +2212,36 @@ async function confirmExportPDF() {
   await exportAssessmentPDF();
 }
 
+function previewStudentPhoto(input) {
+  if (!input.files?.length) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('student-avatar-img');
+    const init = document.getElementById('student-avatar-initials');
+    if (img) { img.src = e.target.result; img.style.display = 'block'; }
+    if (init) init.style.display = 'none';
+    window._pendingStudentPhoto = file;
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetStudentPhotoPreview(name, photoUrl = '') {
+  const img = document.getElementById('student-avatar-img');
+  const init = document.getElementById('student-avatar-initials');
+  if (img) { img.src = photoUrl; img.style.display = photoUrl ? 'block' : 'none'; }
+  if (init) { init.textContent = name ? name.charAt(0).toUpperCase() : '+'; init.style.display = photoUrl ? 'none' : ''; }
+  window._pendingStudentPhoto = null;
+  const input = document.getElementById('ms-photo-input');
+  if (input) input.value = '';
+}
+
 window.uploadStudentPDF = uploadStudentPDF;
 window.loadStudentDocs  = loadStudentDocs;
 window.deleteStudentDoc = deleteStudentDoc;
 window.previewLogo = previewLogo;
+window.previewStudentPhoto = previewStudentPhoto;
+window.resetStudentPhotoPreview = resetStudentPhotoPreview;
 window.openPdfNoteModal  = openPdfNoteModal;
 window.confirmExportPDF  = confirmExportPDF;
 

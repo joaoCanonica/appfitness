@@ -3,10 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#080B0F" id="metaThemeColor">
+<meta name="theme-color" content="#0A0A0A" id="metaThemeColor">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<meta name="apple-mobile-web-app-title" content="Prime House">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Vitalis — Fitness OS</title>
+<title>Prime House — Fitness OS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -21,10 +24,10 @@
      ══════════════════════════════════════════════════════════ -->
 <div id="view-auth" class="auth-wrap hide">
   <div class="auth-logo">
-    <div class="logo-mark">
-      <svg viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5L9.5 7H11L6.5 11.5L2 7H3.5L6.5 1.5Z" fill="white" fill-opacity="0.9"/></svg>
+    <div style="text-align:center;margin-bottom:4px">
+      <div style="font-size:22px;font-weight:800;letter-spacing:-0.03em;color:var(--t1);line-height:1">PRIME HOUSE</div>
+      <div style="font-size:12px;font-weight:700;letter-spacing:0.15em;color:var(--a);text-transform:uppercase">Academia</div>
     </div>
-    Vitalis
   </div>
 
   <!-- Login -->
@@ -83,17 +86,18 @@
   <!-- Header fixo do dashboard -->
   <header class="dash-hdr">
     <div class="dash-hdr-left">
-      <div class="logo">
-        <div class="logo-mark">
-          <svg viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5L9.5 7H11L6.5 11.5L2 7H3.5L6.5 1.5Z" fill="white" fill-opacity="0.9"/></svg>
-        </div>
-        <span id="dash-academy-name">Vitalis</span>
+      <div class="logo" style="gap:0;flex-direction:column;align-items:flex-start;line-height:1">
+        <div style="font-size:15px;font-weight:800;letter-spacing:-0.02em;color:var(--t1)">PRIME HOUSE</div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:0.18em;color:var(--a);text-transform:uppercase">Academia</div>
       </div>
     </div>
     <div class="dash-hdr-right">
       <span class="dash-user" id="dash-user-name"></span>
       <button class="btn-icon" onclick="toggleThemeDash()" aria-label="Tema">
         <svg id="dashThemeIco" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      </button>
+      <button class="btn-icon" id="pwa-install-btn" onclick="installPWA()" style="display:none" aria-label="Instalar App">
+        <svg viewBox="0 0 24 24"><path d="M12 16l-4-4h3V4h2v8h3l-4 4z"/><path d="M20 18H4v2h16v-2z"/></svg>
       </button>
       <button class="btn-icon" onclick="doLogout()" aria-label="Sair">
         <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
@@ -175,10 +179,6 @@
       </button>
     </div>
 
-    <div id="evo-chart-container" style="display:none; padding: 0 20px 20px;">
-      <canvas id="evoChart" height="180"></canvas>
-    </div>
-
     <!-- Histórico de avaliações -->
     <div class="section-hdr" style="padding-bottom:12px">
       <div class="section-title" style="font-size:15px">Avaliações</div>
@@ -188,6 +188,12 @@
       <div class="empty-state" style="padding:24px 0">
         <div class="empty-sub">Nenhuma avaliação ainda. Envie o link para o aluno.</div>
       </div>
+    </div>
+
+    <!-- Gráfico de evolução -->
+    <div id="evolution-chart-block" class="hide" style="margin:0 20px 16px">
+      <div style="font-size:13px;font-weight:600;color:var(--t2);margin-bottom:10px;letter-spacing:0.02em">Evolução</div>
+      <canvas id="evolution-chart" style="width:100%;max-height:180px;border-radius:var(--r8)"></canvas>
     </div>
 
     <!-- Aba de documentos do aluno -->
@@ -229,6 +235,20 @@
       <div class="met-cell"><div class="met-label">TMB</div><div class="met-number" id="av-tmb">--</div><div class="met-unit">kcal/dia</div></div>
       <div class="met-cell"><div class="met-label">TDEE</div><div class="met-number" id="av-tdee">--</div><div class="met-unit">kcal/dia</div></div>
       <div class="met-cell"><div class="met-label">Hidratação</div><div class="met-number" id="av-agua">--</div><div class="met-unit">ml/dia</div></div>
+    </div>
+
+    <!-- Métricas avançadas no dashboard -->
+    <div id="av-met-adv" class="hide">
+      <div class="met-grid">
+        <div class="met-cell"><div class="met-label">% Gordura</div><div class="met-number" id="av-bf">--</div><div class="met-unit">Marinha EUA</div><span class="met-tag g" id="av-bf-tag">--</span></div>
+        <div class="met-cell"><div class="met-label">Massa Magra</div><div class="met-number" id="av-magra">--</div><div class="met-unit">kg</div></div>
+        <div class="met-cell"><div class="met-label">Massa Gorda</div><div class="met-number" id="av-gorda">--</div><div class="met-unit">kg</div></div>
+        <div class="met-cell"><div class="met-label">FFMI</div><div class="met-number" id="av-ffmi">--</div><div class="met-unit">massa livre de gordura</div></div>
+      </div>
+      <div class="met-grid">
+        <div class="met-cell"><div class="met-label">WHtR</div><div class="met-number" id="av-whtr">--</div><div class="met-unit">Cintura/Altura</div><span class="met-tag g" id="av-whtr-tag">--</span></div>
+        <div class="met-cell"><div class="met-label">WHR</div><div class="met-number" id="av-whr">--</div><div class="met-unit">Cintura/Quadril</div></div>
+      </div>
     </div>
 
     <div class="section-sep"></div>
@@ -367,11 +387,9 @@
 <div id="view-assessment" class="hide">
 
   <header class="hdr" id="assess-header">
-    <div class="logo">
-      <div class="logo-mark" id="assess-logo-mark">
-        <svg viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5L9.5 7H11L6.5 11.5L2 7H3.5L6.5 1.5Z" fill="white" fill-opacity="0.9"/></svg>
-      </div>
-      <span id="assess-brand-name">Vitalis</span>
+    <div class="logo" style="gap:0;flex-direction:column;align-items:flex-start;line-height:1">
+      <div style="font-size:14px;font-weight:800;letter-spacing:-0.02em;color:var(--t1)" id="assess-brand-name">PRIME HOUSE</div>
+      <div style="font-size:8px;font-weight:700;letter-spacing:0.18em;color:var(--a);text-transform:uppercase">Academia</div>
     </div>
     <button class="theme-btn" id="themeBtn" aria-label="Alternar tema">
       <svg id="themeIco" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
@@ -383,13 +401,17 @@
     <!-- HERO -->
     <section class="scr on" id="s-hero">
       <div class="hero">
-        <div class="hero-eyebrow"><span class="hero-eyebrow-dot"></span>Avaliação Fitness</div>
-        <h1>Avalie seu<br>corpo com <em>precisão.</em></h1>
-        <p class="hero-sub">Responda as etapas abaixo. Seu profissional terá acesso completo ao diagnóstico.</p>
+        <div style="text-align:center;margin-bottom:32px">
+          <div style="font-size:36px;font-weight:800;letter-spacing:-0.03em;color:var(--t1);line-height:1">PRIME HOUSE</div>
+          <div style="font-size:13px;font-weight:700;letter-spacing:0.2em;color:var(--a);text-transform:uppercase;margin-top:4px">Academia</div>
+        </div>
+        <div class="hero-eyebrow"><span class="hero-eyebrow-dot"></span>Avaliação Fitness Personalizada</div>
+        <h1 style="font-size:clamp(28px,8vw,44px)">Avalie seu<br>corpo com <em>precisão.</em></h1>
+        <p class="hero-sub">Preencha as etapas abaixo. Seu profissional terá acesso completo ao seu diagnóstico.</p>
         <div class="hero-stats">
           <div class="hero-stat"><div class="hero-stat-val">2min</div><div class="hero-stat-lbl">Para concluir</div></div>
           <div class="hero-divider"></div>
-          <div class="hero-stat"><div class="hero-stat-val">9</div><div class="hero-stat-lbl">Etapas</div></div>
+          <div class="hero-stat"><div class="hero-stat-val">10</div><div class="hero-stat-lbl">Etapas</div></div>
           <div class="hero-divider"></div>
           <div class="hero-stat"><div class="hero-stat-val">100%</div><div class="hero-stat-lbl">Seguro</div></div>
         </div>
@@ -404,10 +426,10 @@
     <section class="scr" id="s-form">
       <div class="prg-wrap">
         <div class="prg-top">
-          <span class="prg-lbl" id="prgLbl">Etapa 1 de 9</span>
-          <span class="prg-pct" id="prgPct">11%</span>
+          <span class="prg-lbl" id="prgLbl">Etapa 1 de 10</span>
+          <span class="prg-pct" id="prgPct">10%</span>
         </div>
-        <div class="prg-track"><div class="prg-fill" id="prgFill" style="width:11%"></div></div>
+        <div class="prg-track"><div class="prg-fill" id="prgFill" style="width:10%"></div></div>
       </div>
 
       <!-- Step 1 -->
@@ -616,9 +638,48 @@
         </div>
       </div>
 
-      <!-- Step 8 -->
+      <!-- Step 8 — MEDIDAS CORPORAIS -->
       <div class="stp hide" id="st8">
-        <div class="stp-eyebrow">Etapa 8</div>
+        <div class="stp-eyebrow">Etapa 8 — Opcional mas importante</div>
+        <div class="stp-t">Medidas Corporais</div>
+        <div class="stp-s">Estas medidas permitem calcular gordura corporal, composição e evolução real. Não são obrigatórias.</div>
+
+        <!-- Cintura -->
+        <div class="fld">
+          <label>Circunferência da Cintura (cm)</label>
+          <input type="number" id="f-cintura" placeholder="Ex: 85" inputmode="decimal" min="40" max="200">
+          <div style="font-size:11px;color:var(--t3);margin-top:5px;line-height:1.5">
+            📏 Como medir: fita métrica ao redor do umbigo, sem apertar. Expire normalmente e meça.
+          </div>
+        </div>
+
+        <!-- Quadril -->
+        <div class="fld">
+          <label>Circunferência do Quadril (cm)</label>
+          <input type="number" id="f-quadril" placeholder="Ex: 100" inputmode="decimal" min="40" max="200">
+          <div style="font-size:11px;color:var(--t3);margin-top:5px;line-height:1.5">
+            📏 Como medir: parte mais larga do quadril/glúteos, fita paralela ao chão.
+          </div>
+        </div>
+
+        <!-- Pescoço -->
+        <div class="fld">
+          <label>Circunferência do Pescoço (cm)</label>
+          <input type="number" id="f-pescoco" placeholder="Ex: 38" inputmode="decimal" min="20" max="80">
+          <div style="font-size:11px;color:var(--t3);margin-top:5px;line-height:1.5">
+            📏 Como medir: logo abaixo do pomo de adão, fita ao redor do pescoço. Usado para calcular % de gordura (método Marinha Americana).
+          </div>
+        </div>
+
+        <div class="notice-local" style="margin:16px 0 0">
+          <span>ℹ️</span>
+          <span>Com cintura + pescoço + altura calculamos seu % de gordura, massa magra, FFMI e outros índices avançados. Quanto mais informações, mais preciso o relatório.</span>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="stp hide" id="st9">
+        <div class="stp-eyebrow">Etapa 9</div>
         <div class="stp-t">Disponibilidade</div>
         <div class="stp-s">Um plano que caiba na sua rotina real.</div>
         <span class="opt-lbl">Dias Disponíveis</span>
@@ -647,8 +708,8 @@
         </div>
       </div>
 
-      <!-- Step 9: Confirmação -->
-      <div class="stp hide" id="st9"></div>
+      <!-- Step 10: Confirmação -->
+      <div class="stp hide" id="st10"></div>
 
       <div class="nav-space"></div>
       <div class="nav" id="formNav">
@@ -691,6 +752,19 @@
         <div class="met-cell"><div class="met-label">TMB</div><div class="met-number" id="r-tmb">--</div><div class="met-unit">kcal / dia</div></div>
         <div class="met-cell"><div class="met-label">TDEE</div><div class="met-number" id="r-tdee">--</div><div class="met-unit">kcal / dia</div></div>
         <div class="met-cell"><div class="met-label">Hidratação</div><div class="met-number" id="r-agua">--</div><div class="met-unit">ml / dia</div></div>
+      </div>
+      <!-- Métricas avançadas (aparecem só se tiver medidas) -->
+      <div id="met-grid-adv" class="hide">
+        <div class="met-grid">
+          <div class="met-cell"><div class="met-label">% Gordura</div><div class="met-number" id="r-bf">--</div><div class="met-unit">método Marinha EUA</div><span class="met-tag g" id="r-bf-tag">--</span></div>
+          <div class="met-cell"><div class="met-label">Massa Magra</div><div class="met-number" id="r-magra">--</div><div class="met-unit">kg</div></div>
+          <div class="met-cell"><div class="met-label">Massa Gorda</div><div class="met-number" id="r-gorda">--</div><div class="met-unit">kg</div></div>
+          <div class="met-cell"><div class="met-label">FFMI</div><div class="met-number" id="r-ffmi">--</div><div class="met-unit">Índice massa magra</div></div>
+        </div>
+        <div class="met-grid">
+          <div class="met-cell"><div class="met-label">Cintura/Altura</div><div class="met-number" id="r-whtr">--</div><div class="met-unit">WHtR ideal &lt; 0.50</div><span class="met-tag g" id="r-whtr-tag">--</span></div>
+          <div class="met-cell"><div class="met-label">Cintura/Quadril</div><div class="met-number" id="r-whr">--</div><div class="met-unit">WHR</div></div>
+        </div>
       </div>
       <div class="section-sep"></div>
       <div class="sec-block" style="margin-top:20px"><div class="sec-line"><span class="sec-icon g"></span><span class="sec-t">Pontos Fortes</span></div></div>
@@ -767,6 +841,17 @@
     <div class="modal-title" id="modal-student-title">Novo Aluno</div>
     <div class="modal-sub">Preencha os dados do aluno.</div>
     <div class="modal-body">
+      <div class="fld" style="display:flex;align-items:center;gap:14px;padding:4px 0 8px">
+        <div id="student-avatar-preview" style="width:52px;height:52px;border-radius:50%;background:var(--a-dim);border:2px solid var(--a-mid);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--a2);flex-shrink:0;cursor:pointer;overflow:hidden" onclick="document.getElementById('ms-photo-input').click()">
+          <span id="student-avatar-initials">+</span>
+          <img id="student-avatar-img" style="display:none;width:100%;height:100%;object-fit:cover" src="" alt="">
+        </div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500;color:var(--t1)">Foto do Aluno</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:2px">Opcional — toque para selecionar</div>
+          <input type="file" id="ms-photo-input" accept="image/*" style="display:none" onchange="previewStudentPhoto(this)">
+        </div>
+      </div>
       <div class="fld"><label>Nome Completo</label><input type="text" id="ms-name" placeholder="Nome do aluno" autocomplete="off"></div>
       <div class="frow">
         <div class="fld"><label>E-mail</label><input type="email" id="ms-email" placeholder="email@exemplo.com" inputmode="email"></div>
@@ -858,10 +943,31 @@
 </div>
 
 <!-- Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="js/supabase.js"></script>
 <script src="js/app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
+let _deferredInstall = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _deferredInstall = e;
+  const btn = document.getElementById('pwa-install-btn');
+  if (btn) btn.style.display = 'flex';
+});
+window.addEventListener('appinstalled', () => {
+  const btn = document.getElementById('pwa-install-btn');
+  if (btn) btn.style.display = 'none';
+});
+function installPWA() {
+  if (!_deferredInstall) return;
+  _deferredInstall.prompt();
+  _deferredInstall.userChoice.then(() => { _deferredInstall = null; });
+}
+</script>
 </body>
 </html>

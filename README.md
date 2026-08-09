@@ -1,6 +1,16 @@
-# 🏋️ Vitalis — Fitness OS v2
+# 🏋️ Prime House — Fitness OS
 
 Plataforma inteligente de avaliação e planejamento fitness com integração Supabase.
+
+## Setup Supabase — executar no SQL Editor
+
+```sql
+ALTER TABLE students ADD COLUMN IF NOT EXISTS photo_url TEXT;
+```
+
+## Ícones PWA
+
+Os ícones já são servidos pela pasta [`icons/`](icons/). Para recriá-los a partir da logo, envie `primelogo.jpg` ao [PWA Builder Image Generator](https://www.pwabuilder.com/imageGenerator), gere `icon-192.png` e `icon-512.png` e coloque ambos em `/icons/`.
 
 ## ✨ Características
 
@@ -89,6 +99,9 @@ python3 -m http.server 8000
 ```
 appfitness/
 ├── index.html           # HTML principal com todas as telas
+├── manifest.json         # Manifesto de instalação PWA
+├── sw.js                 # Service worker PWA
+├── icons/                # Ícones da aplicação instalável
 ├── css/
 │   └── style.css       # Estilos (light/dark theme)
 ├── js/

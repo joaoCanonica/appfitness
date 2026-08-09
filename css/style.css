@@ -1,23 +1,23 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  --bg:       #080B0F;
-  --bg-raised:#0E1117;
-  --bg-card:  #111520;
-  --bg-inset: #0A0D14;
+  --bg:        #0A0A0A;
+  --bg-raised: #111111;
+  --bg-card:   #161616;
+  --bg-inset:  #0D0D0D;
 
-  --line:     rgba(255,255,255,0.06);
-  --line-2:   rgba(255,255,255,0.10);
-  --line-3:   rgba(255,255,255,0.16);
+  --line:   rgba(255,255,255,0.06);
+  --line-2: rgba(255,255,255,0.10);
+  --line-3: rgba(255,255,255,0.18);
 
-  --t1:  #F1F3F6;
-  --t2:  #7E8898;
-  --t3:  #414A57;
+  --t1: #F5F5F5;
+  --t2: #8A8A8A;
+  --t3: #3A3A3A;
 
-  --a:   #6366F1;
-  --a2:  #818CF8;
-  --a-dim: rgba(99,102,241,0.10);
-  --a-mid: rgba(99,102,241,0.18);
+  --a:     #E87722;
+  --a2:    #F5924A;
+  --a-dim: rgba(232,119,34,0.10);
+  --a-mid: rgba(232,119,34,0.20);
 
   --green:  #22D3A0;
   --g-dim:  rgba(34,211,160,0.10);
@@ -35,27 +35,27 @@
   --r16: 16px;
   --r24: 24px;
 
-  --hh: 52px;
+  --hh: 56px;
 }
 
 [data-theme="light"] {
-  --bg:       #F7F8FA;
-  --bg-raised:#FFFFFF;
-  --bg-card:  #FFFFFF;
-  --bg-inset: #F0F2F5;
+  --bg:        #F5F5F5;
+  --bg-raised: #FFFFFF;
+  --bg-card:   #FFFFFF;
+  --bg-inset:  #EFEFEF;
 
-  --line:     rgba(0,0,0,0.06);
-  --line-2:   rgba(0,0,0,0.10);
-  --line-3:   rgba(0,0,0,0.16);
+  --line:   rgba(0,0,0,0.06);
+  --line-2: rgba(0,0,0,0.10);
+  --line-3: rgba(0,0,0,0.16);
 
-  --t1:  #0D1117;
-  --t2:  #4B5563;
-  --t3:  #9CA3AF;
+  --t1: #0A0A0A;
+  --t2: #555555;
+  --t3: #AAAAAA;
 
-  --a:   #4F46E5;
-  --a2:  #6366F1;
-  --a-dim: rgba(79,70,229,0.07);
-  --a-mid: rgba(79,70,229,0.13);
+  --a:     #E87722;
+  --a2:    #C8621A;
+  --a-dim: rgba(232,119,34,0.07);
+  --a-mid: rgba(232,119,34,0.14);
 
   --green:  #059669;
   --g-dim:  rgba(5,150,105,0.08);
@@ -2181,77 +2181,44 @@ input[type=range]:focus::-webkit-slider-thumb {
 .pill-badge.w { background: var(--am-dim); color: var(--amber) }
 .pill-badge.b { background: var(--r-dim); color: var(--red) }
 
-/* ── MELHORIAS VISUAIS v2.1 ──────────────────────────────── */
-
-/* Documentos — melhor espaçamento */
-#student-docs { padding: 0 20px 20px; }
-
-/* Settings — logo preview */
-#mp-logo-preview {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--r8);
-  object-fit: cover;
-  border: 1px solid var(--line-2);
-}
-
-/* Modal PDF note — textarea maior */
-#pdf-note-input { height: 100px; line-height: 1.6; }
-
-/* Assessment card hover */
-.assessment-card {
-  transition: border-color 0.15s, transform 0.1s;
-}
-.assessment-card:active { transform: scale(0.99); }
-
-/* Student row — feedback tátil */
-.student-row { transition: background 0.12s; }
-.student-row:active { background: var(--bg-raised); }
-
-/* Stat cells — melhor contraste */
-.stat-val { line-height: 1; margin-top: 2px; }
-
-/* Docs — linha sem borda na última */
-#student-docs > div:last-child { border-bottom: none !important; }
-
-/* Bottom nav — indicador ativo mais visível */
-.nav-tab.active {
-  color: var(--a2);
-  font-weight: 600;
-}
-
-/* Btn primary — feedback mais responsivo */
-.btn-p:active { opacity: 0.85; transform: scale(0.97); }
-
-/* Score pill — legível em todos os temas */
-.score-pill { font-size: 12px; letter-spacing: 0.02em; }
-
-/* Toast — um pouco maior para legibilidade */
-.toast { font-size: 13.5px; padding: 11px 18px; }
-
-/* Tela de resultado do aluno — status de envio */
-.res-greeting {
-  font-size: 12px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  transition: color 0.3s;
-}
-
-/* Link card — melhor espaçamento */
-.link-url {
-  word-break: break-all;
-  line-height: 1.6;
-  padding: 8px;
-  background: var(--bg-inset);
-  border-radius: var(--r4);
-  margin-bottom: 12px;
-  font-size: 11px;
-}
-
-/* Editor de treino — campos mais claros */
-.ex-edit-name:focus { outline: none; color: var(--t1); }
-.ex-edit-sets:focus { border-color: var(--a); outline: none; }
-
-/* Seção de documentos — título mais destaque */
-#student-docs + .section-hdr .section-title,
-.section-title { letter-spacing: -0.01em; }
+/* ── PRIME HOUSE v2.1 ───────────────────────────────────── */
+.hdr, .dash-hdr { border-bottom: 1px solid var(--line-2); }
+.btn-p { background:var(--a); transition:background .15s,transform .1s,opacity .15s; font-weight:600; }
+.btn-p:hover { background:var(--a2); }
+.btn-p:active { transform:scale(.97); opacity:.9; }
+.score-pill { font-weight:700; letter-spacing:.04em; }
+.met-number { font-weight:800; }
+.student-avatar { border:1.5px solid var(--a-mid); }
+.student-row { transition:background .12s; }
+.student-row:active { background:var(--bg-raised); }
+.assessment-card { transition:border-color .15s,transform .1s; }
+.assessment-card:hover { border-color:var(--a); }
+.assessment-card:active { transform:scale(.99); }
+.nav-tab.active { color:var(--a); font-weight:700; }
+.tag-add-btn { width:30px; height:30px; border-radius:var(--r4); border:1px solid var(--a-mid); background:var(--a-dim); color:var(--a2); font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; touch-action:manipulation; transition:background .13s,transform .1s; }
+.tag-add-btn:active { transform:scale(.9); background:var(--a-mid); }
+.stat-val { line-height:1; margin-top:2px; font-weight:800; }
+#met-grid-adv, #av-met-adv { border-top:1px solid var(--line); }
+#evolution-chart { background:var(--bg-card); border-radius:var(--r12); padding:12px; }
+.toast { font-size:13.5px; padding:11px 18px; font-weight:500; }
+.link-url { word-break:break-all; line-height:1.6; padding:8px; background:var(--bg-inset); border-radius:var(--r4); margin-bottom:12px; font-size:11px; }
+.ex-edit-name:focus { outline:none; color:var(--t1); }
+.ex-edit-sets:focus { border-color:var(--a); outline:none; }
+#student-docs { padding:0 20px 20px; }
+#student-docs > div:last-child { border-bottom:none !important; }
+#mp-logo-preview { width:48px; height:48px; border-radius:var(--r8); object-fit:cover; border:1px solid var(--line-2); }
+#pdf-note-input { height:100px; line-height:1.6; }
+#pwa-install-btn svg { width:16px; height:16px; fill:currentColor; stroke:none; }
+.hero h1 em { color:var(--a); font-style:normal; }
+.hero-eyebrow-dot { background:var(--a); }
+.prg-fill { background:var(--a); }
+input[type=range]::-webkit-slider-thumb { border-color:var(--a); }
+.tgl.on { background:var(--a); }
+.ob.sel, .day-btn.sel, .pain-btn.sel { border-color:var(--a); background:var(--a-dim); color:var(--a2); }
+.stp-eyebrow { color:var(--a); }
+.stp-eyebrow::before { background:var(--a); }
+.sec-icon.i { background:var(--a); }
+.load-ring-spin { border-top-color:var(--a); }
+.tag-item { background:var(--a-mid); color:var(--a2); border-color:var(--a-dim); }
+.auth-card { border-color:var(--line-2); }
+.back-btn { color:var(--a); }
