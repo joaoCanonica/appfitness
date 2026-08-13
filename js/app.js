@@ -401,6 +401,9 @@ function renderStudentList() {
         <div class="student-info">
           <div class="student-name">${escHtml(s.name)}</div>
           <div class="student-meta">${s.email || s.phone || 'Sem contato'}</div>
+          <div style="font-size:10px;color:var(--t3);margin-top:1px">
+            Matrícula: ${formatEnrollmentDate(s.enrollment_date || s.created_at)}
+          </div>
         </div>
         <div class="student-badge ${s.active ? 'active' : 'inactive'}">${s.active ? 'Ativo' : 'Inativo'}</div>
         <div class="student-chev"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
@@ -448,23 +451,41 @@ async function saveStudent() {
   btn.textContent = 'Salvando...';
 
   let photoUrl = currentStudent?.photo_url || null;
+
   if (window._pendingStudentPhoto) {
-    const file = window._pendingStudentPhoto;
-    const ext = file.name.split('.').pop() || 'jpg';
-    const path = `photos/${currentProf.id}/${Date.now()}.${ext}`;
-    const { error: upErr } = await sb.storage.from('student-docs').upload(path, file, { upsert: true });
-    if (!upErr) {
-      const { data: urlData } = sb.storage.from('student-docs').getPublicUrl(path);
-      photoUrl = urlData.publicUrl;
+    try {
+      const file = window._pendingStudentPhoto;
+      const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const studentId = currentStudent?.id || 'new_' + Date.now();
+      const path = `photos/${currentProf.id}/${studentId}.${ext}`;
+
+      const { data: upData, error: upErr } = await sb.storage
+        .from('student-docs')
+        .upload(path, file, { upsert: true, contentType: file.type });
+
+      if (upErr) {
+        console.error('[Photo upload error]', upErr);
+        toast('Aviso: foto não enviada — ' + upErr.message);
+      } else {
+        const { data: urlData } = sb.storage
+          .from('student-docs')
+          .getPublicUrl(path);
+        photoUrl = urlData.publicUrl + '?t=' + Date.now();
+      }
+    } catch(e) {
+      console.error('[Photo error]', e);
     }
     window._pendingStudentPhoto = null;
   }
 
   const payload = {
     professional_id: currentProf.id,
-    name, email: email || null, phone: phone || null,
-    birth_date: birth || null, notes: notes || null,
-    ...(photoUrl !== undefined ? { photo_url: photoUrl } : {}),
+    name,
+    email:    email || null,
+    phone:    phone || null,
+    birth_date: birth || null,
+    notes:    notes || null,
+    photo_url: photoUrl,
   };
 
   let error;
@@ -514,8 +535,10 @@ async function openStudentDetail(studentId) {
   }
   currentStudent = student;
   document.getElementById('detail-name').textContent = student.name;
-  document.getElementById('detail-meta').textContent =
-    [student.email, student.phone].filter(Boolean).join(' · ') || 'Sem contato';
+  const enrollStr = formatEnrollmentDate(student.enrollment_date || student.created_at);
+  const contactStr = [student.email, student.phone].filter(Boolean).join(' · ') || 'Sem contato';
+  document.getElementById('detail-meta').innerHTML =
+    `${contactStr}<br><span style="font-size:11px;color:var(--t3)">Matrícula: ${enrollStr}</span>`;
   dashNav('ds-student-detail');
   // Sempre recarrega avaliações ao abrir o detalhe — garante dados frescos
   await loadStudentAssessments();
@@ -2148,18 +2171,38 @@ document.addEventListener('touchend', function(e) {
 
 // ── DOCUMENTOS DO ALUNO ───────────────────────────────────────
 async function uploadStudentPDF(input) {
-  if (!input.files?.length || !currentStudent || !currentProf) return;
+  if (!input.files?.length || !currentStudent || !currentProf) {
+    toast('Selecione um arquivo e certifique-se de ter um aluno selecionado');
+    return;
+  }
+
   const file = input.files[0];
-  if (file.size > 10 * 1024 * 1024) { toast('Arquivo muito grande (máx 10MB)'); return; }
+  if (file.size > 10 * 1024 * 1024) {
+    toast('Arquivo muito grande (máx 10MB)');
+    input.value = '';
+    return;
+  }
 
   toast('Enviando documento...');
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const path = `${currentProf.id}/${currentStudent.id}/${Date.now()}_${safeName}`;
+  const safeName = file.name
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/__+/g, '_');
 
-  const { error } = await sb.storage.from('student-docs').upload(path, file, { upsert: false });
-  if (error) { toast('Erro ao enviar: ' + error.message); return; }
+  const path = `docs/${currentProf.id}/${currentStudent.id}/${Date.now()}_${safeName}`;
 
-  toast('Documento enviado!');
+  const { error } = await sb.storage
+    .from('student-docs')
+    .upload(path, file, { upsert: false, contentType: file.type });
+
+  if (error) {
+    console.error('[Upload error]', error);
+    toast('Erro ao enviar: ' + (error.message || 'verifique sua conexão'));
+    input.value = '';
+    return;
+  }
+
+  toast('Documento enviado com sucesso!');
   await loadStudentDocs();
   input.value = '';
 }
@@ -2170,7 +2213,7 @@ async function loadStudentDocs() {
   if (!container) return;
 
   container.innerHTML = '<div style="padding:12px 0;font-size:12px;color:var(--t3)">Carregando...</div>';
-  const path = `${currentProf.id}/${currentStudent.id}`;
+  const path = `docs/${currentProf.id}/${currentStudent.id}`;
   const { data, error } = await sb.storage.from('student-docs').list(path, { sortBy: { column: 'created_at', order: 'desc' } });
 
   if (error) {
@@ -2192,7 +2235,7 @@ async function loadStudentDocs() {
     return '📎';
   };
   container.innerHTML = files.map(f => {
-    const { data: urlData } = sb.storage.from('student-docs').getPublicUrl(`${path}/${f.name}`);
+    const { data: urlData } = sb.storage.from('student-docs').getPublicUrl(`docs/${currentProf.id}/${currentStudent.id}/${f.name}`);
     const size = f.metadata?.size ? (f.metadata.size / 1024 < 1024
       ? (f.metadata.size / 1024).toFixed(0) + ' KB'
       : (f.metadata.size / 1024 / 1024).toFixed(1) + ' MB') : '';
@@ -2214,7 +2257,7 @@ async function loadStudentDocs() {
            style="font-size:11px;font-weight:600;color:var(--t1);text-decoration:none;padding:5px 10px;border:1px solid var(--line-2);border-radius:4px;background:var(--bg-card)">
           ↓
         </a>
-        <button onclick="deleteStudentDoc('${escHtml(path + '/' + f.name)}')"
+        <button onclick="deleteStudentDoc('${escHtml(`docs/${currentProf.id}/${currentStudent.id}/${f.name}`)}')"
            style="font-size:11px;font-weight:600;color:var(--red);padding:5px 10px;border:1px solid rgba(248,113,113,0.3);border-radius:4px;background:var(--r-dim);cursor:pointer;touch-action:manipulation">
           ✕
         </button>
@@ -2329,6 +2372,21 @@ function resetInactivityTimer() {
 ['click','keydown','touchstart','scroll'].forEach(ev => {
   document.addEventListener(ev, resetInactivityTimer, { passive: true });
 });
+
+function formatEnrollmentDate(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    return new Date(dateStr).toLocaleDateString('pt-BR', {
+      day:      '2-digit',
+      month:    '2-digit',
+      year:     'numeric',
+      hour:     '2-digit',
+      minute:   '2-digit',
+      timeZone: 'America/Sao_Paulo'
+    });
+  } catch(e) { return '—'; }
+}
+window.formatEnrollmentDate = formatEnrollmentDate;
 
 window.uploadStudentPDF = uploadStudentPDF;
 window.loadStudentDocs  = loadStudentDocs;
