@@ -385,11 +385,41 @@
     <div style="text-align:center;padding:24px;font-size:11px;color:var(--t3)">Vitalis v2.0 — Fitness OS</div>
   </div>
 
+  <!-- Tela: Agenda -->
+  <div class="dash-scr" id="ds-agenda">
+
+    <!-- Header da semana -->
+    <div style="padding:16px 20px 0;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div class="section-title">Agenda</div>
+        <div id="agenda-week-label" style="font-size:12px;color:var(--t3);margin-top:2px"></div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-sm" onclick="agendaWeekNav(-1)" style="width:32px;padding:0;justify-content:center">‹</button>
+        <button class="btn-sm" onclick="agendaWeekNav(0)" style="font-size:11px">Hoje</button>
+        <button class="btn-sm" onclick="agendaWeekNav(1)" style="width:32px;padding:0;justify-content:center">›</button>
+      </div>
+    </div>
+
+    <!-- Dias da semana -->
+    <div id="agenda-days-header" style="display:flex;gap:4px;padding:12px 20px 0;overflow-x:auto"></div>
+
+    <!-- Grade de horários -->
+    <div id="agenda-grid" style="padding:8px 20px;overflow-y:auto;max-height:calc(100dvh - 220px)"></div>
+
+    <!-- Botão adicionar -->
+    <button onclick="openAddEvent()" style="position:fixed;bottom:calc(68px + env(safe-area-inset-bottom));right:20px;width:48px;height:48px;border-radius:50%;background:var(--a);border:none;color:#fff;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px var(--a-mid);z-index:100;touch-action:manipulation">+</button>
+  </div>
+
   <!-- Bottom Navigation -->
   <nav class="bottom-nav">
     <button class="nav-tab active" id="tab-students" onclick="switchTab('students')">
       <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Alunos
+    </button>
+    <button class="nav-tab" id="tab-agenda" onclick="switchTab('agenda')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Agenda
     </button>
     <button class="nav-tab" id="tab-settings" onclick="switchTab('settings')">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -976,6 +1006,50 @@
     <div class="modal-footer">
       <button class="btn-s" onclick="closeModal('modal-pdf-note')">Cancelar</button>
       <button class="btn-p" onclick="confirmExportPDF()">Gerar PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Evento da Agenda -->
+<div class="modal-overlay" id="modal-event" onclick="if(event.target===this)closeModal('modal-event')">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-title" id="modal-event-title">Novo Evento</div>
+    <div class="modal-body">
+      <div class="fld"><label>Título / Descrição</label><input type="text" id="ev-title" placeholder="Ex: Treino — João, Avaliação, Reunião"></div>
+      <div class="frow">
+        <div class="fld"><label>Horário início</label><input type="time" id="ev-start" value="07:00"></div>
+        <div class="fld"><label>Horário fim</label><input type="time" id="ev-end" value="08:00"></div>
+      </div>
+      <div class="fld"><label>Aluno (opcional)</label>
+        <select id="ev-student">
+          <option value="">Nenhum aluno vinculado</option>
+        </select>
+      </div>
+      <div class="fld"><label>Tipo</label>
+        <select id="ev-recurring">
+          <option value="single">Evento único (só neste dia)</option>
+          <option value="recurring">Recorrente (toda semana neste dia)</option>
+        </select>
+      </div>
+      <div class="fld"><label>Cor do evento</label>
+        <div style="display:flex;gap:6px;margin-top:4px" id="ev-color-picker">
+          <button onclick="setEvColor(this,'#6366F1')" style="width:28px;height:28px;border-radius:50%;background:#6366F1;border:3px solid #6366F1;cursor:pointer"></button>
+          <button onclick="setEvColor(this,'#22C55E')" style="width:28px;height:28px;border-radius:50%;background:#22C55E;border:3px solid transparent;cursor:pointer"></button>
+          <button onclick="setEvColor(this,'#E87722')" style="width:28px;height:28px;border-radius:50%;background:#E87722;border:3px solid transparent;cursor:pointer"></button>
+          <button onclick="setEvColor(this,'#3B82F6')" style="width:28px;height:28px;border-radius:50%;background:#3B82F6;border:3px solid transparent;cursor:pointer"></button>
+          <button onclick="setEvColor(this,'#EC4899')" style="width:28px;height:28px;border-radius:50%;background:#EC4899;border:3px solid transparent;cursor:pointer"></button>
+          <button onclick="setEvColor(this,'#EF4444')" style="width:28px;height:28px;border-radius:50%;background:#EF4444;border:3px solid transparent;cursor:pointer"></button>
+        </div>
+      </div>
+      <div class="fld"><label>Observações</label><textarea id="ev-notes" placeholder="Observações do evento..." style="height:60px"></textarea></div>
+      <div id="ev-edit-delete" style="display:none;margin-top:8px">
+        <button onclick="deleteEvent()" style="width:100%;padding:11px;border-radius:var(--r8);border:1px solid rgba(248,113,113,0.3);background:var(--r-dim);color:var(--red);font-size:13px;font-weight:600;cursor:pointer">Excluir Evento</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-s" onclick="closeModal('modal-event')">Cancelar</button>
+      <button class="btn-p" onclick="saveEvent()" id="btn-save-event">Salvar</button>
     </div>
   </div>
 </div>

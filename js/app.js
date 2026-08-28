@@ -986,10 +986,12 @@ function dashNav(screenId) {
 }
 
 function switchTab(tab) {
-  ['students','settings'].forEach(t => {
+  ['students','agenda','settings'].forEach(t => {
     document.getElementById('tab-'+t)?.classList.toggle('active', t === tab);
   });
-  dashNav(tab === 'students' ? 'ds-students' : 'ds-settings');
+  const screenMap = { students:'ds-students', agenda:'ds-agenda', settings:'ds-settings' };
+  dashNav(screenMap[tab] || 'ds-students');
+  if (tab === 'agenda') loadAgenda();
 }
 
 // ── BRAND VIA TOKEN (aluno) ───────────────────────────────────
@@ -2426,6 +2428,271 @@ window.openPdfNoteModal  = openPdfNoteModal;
 window.confirmExportPDF  = confirmExportPDF;
 window.previewPdfExtraImg = previewPdfExtraImg;
 window.clearPdfExtraImg = clearPdfExtraImg;
+
+// ── AGENDA ───────────────────────────────────────────────────
+let _agendaWeekOffset = 0;
+let _agendaEvents     = [];
+let _editingEventId   = null;
+let _evColor          = '#6366F1';
+let _agendaSelectedDate = null;
+
+const HOURS = Array.from({length: 18}, (_, i) => i + 5); // 05:00 às 22:00
+const DAYS_PT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+function getWeekDates(offset) {
+  const today = new Date();
+  const day   = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - day + 1 + offset * 7);
+  return Array.from({length: 7}, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+}
+
+async function loadAgenda() {
+  if (!currentProf) return;
+  const dates = getWeekDates(_agendaWeekOffset);
+  const from  = dates[0].toISOString().split('T')[0];
+  const to    = dates[6].toISOString().split('T')[0];
+
+  // Busca eventos únicos da semana + recorrentes
+  const { data } = await sb.from('schedule_events')
+    .select('*, students(name, registration_id, photo_url)')
+    .eq('professional_id', currentProf.id)
+    .or(`is_recurring.eq.true,event_date.gte.${from},event_date.lte.${to}`);
+
+  _agendaEvents = data || [];
+
+  renderAgendaHeader(dates);
+  renderAgendaGrid(dates);
+  updateAgendaWeekLabel(dates);
+}
+
+function updateAgendaWeekLabel(dates) {
+  const from = dates[0].toLocaleDateString('pt-BR', {day:'2-digit',month:'short'});
+  const to   = dates[6].toLocaleDateString('pt-BR', {day:'2-digit',month:'short',year:'numeric'});
+  const el = document.getElementById('agenda-week-label');
+  if (el) el.textContent = `${from} – ${to}`;
+}
+
+function renderAgendaHeader(dates) {
+  const today  = new Date().toDateString();
+  const header = document.getElementById('agenda-days-header');
+  if (!header) return;
+  header.innerHTML = dates.map(d => {
+    const isToday = d.toDateString() === today;
+    const dateStr = d.toISOString().split('T')[0];
+    return `
+    <div onclick="agendaSelectDay('${dateStr}')"
+         style="flex:0 0 auto;min-width:42px;text-align:center;padding:8px 6px;border-radius:var(--r8);cursor:pointer;background:${isToday ? 'var(--a)' : 'var(--bg-card)'};border:1px solid ${isToday ? 'var(--a)' : 'var(--line-2)'};touch-action:manipulation">
+      <div style="font-size:9px;font-weight:600;letter-spacing:0.06em;color:${isToday ? '#fff' : 'var(--t3)'};text-transform:uppercase">${DAYS_PT[d.getDay()]}</div>
+      <div style="font-size:16px;font-weight:700;color:${isToday ? '#fff' : 'var(--t1)'};margin-top:2px">${d.getDate()}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderAgendaGrid(dates) {
+  const grid = document.getElementById('agenda-grid');
+  if (!grid) return;
+
+  let html = '';
+  HOURS.forEach(hour => {
+    html += `<div style="display:flex;gap:8px;margin-bottom:2px">`;
+    html += `<div style="width:36px;flex-shrink:0;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--t3);padding-top:10px;text-align:right">${String(hour).padStart(2,'0')}:00</div>`;
+    html += `<div style="flex:1;display:grid;grid-template-columns:repeat(7,1fr);gap:2px">`;
+
+    dates.forEach(d => {
+      const dateStr = d.toISOString().split('T')[0];
+      const dow     = d.getDay();
+      const isToday = d.toDateString() === new Date().toDateString();
+      const timeStr = `${String(hour).padStart(2,'0')}:00`;
+
+      // Eventos desta célula
+      const cellEvents = _agendaEvents.filter(ev => {
+        const evHour = parseInt(ev.start_time?.split(':')[0] || 0);
+        if (evHour !== hour) return false;
+        if (ev.is_recurring) return ev.day_of_week === dow;
+        return ev.event_date === dateStr;
+      });
+
+      if (cellEvents.length > 0) {
+        const ev = cellEvents[0];
+        const stName = ev.students?.name || '';
+        const done   = ev.completed;
+        html += `
+        <div onclick="openEditEvent('${ev.id}')"
+             style="min-height:36px;border-radius:4px;background:${ev.color || 'var(--a)'}22;border:1px solid ${ev.color || 'var(--a)'}66;padding:4px 5px;cursor:pointer;position:relative;touch-action:manipulation;${done ? 'opacity:0.5' : ''}">
+          <div style="font-size:9px;font-weight:700;color:${ev.color || 'var(--a)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${done ? '✓ ' : ''}${escHtml(ev.title)}</div>
+          ${stName ? `<div style="font-size:8px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(stName)}</div>` : ''}
+        </div>`;
+      } else {
+        html += `
+        <div onclick="openAddEventAt('${dateStr}','${timeStr}')"
+             style="min-height:36px;border-radius:4px;border:1px solid ${isToday ? 'rgba(255,255,255,0.05)' : 'var(--line)'};background:${isToday ? 'var(--a-dim)' : 'transparent'};cursor:pointer;touch-action:manipulation"
+             class="agenda-cell">
+        </div>`;
+      }
+    });
+
+    html += `</div></div>`;
+  });
+
+  grid.innerHTML = html;
+}
+
+function agendaWeekNav(dir) {
+  if (dir === 0) _agendaWeekOffset = 0;
+  else _agendaWeekOffset += dir;
+  loadAgenda();
+}
+
+function agendaSelectDay(dateStr) {
+  _agendaSelectedDate = dateStr;
+}
+
+function setEvColor(btn, color) {
+  _evColor = color;
+  document.querySelectorAll('#ev-color-picker button').forEach(b => b.style.border = '3px solid transparent');
+  btn.style.border = `3px solid ${color}`;
+}
+
+function openAddEvent() {
+  _editingEventId = null;
+  document.getElementById('modal-event-title').textContent = 'Novo Evento';
+  document.getElementById('ev-title').value   = '';
+  document.getElementById('ev-notes').value   = '';
+  document.getElementById('ev-start').value   = '07:00';
+  document.getElementById('ev-end').value     = '08:00';
+  document.getElementById('ev-student').value = '';
+  document.getElementById('ev-recurring').value = 'single';
+  document.getElementById('ev-edit-delete').style.display = 'none';
+  _evColor = 'var(--a)';
+  openModal('modal-event');
+
+  // Popula alunos no select
+  const sel = document.getElementById('ev-student');
+  sel.innerHTML = '<option value="">Nenhum aluno vinculado</option>' +
+    allStudents.map(s => `<option value="${s.id}">${escHtml(s.name)} ${s.registration_id ? '· '+s.registration_id : ''}</option>`).join('');
+}
+
+function openAddEventAt(dateStr, timeStr) {
+  openAddEvent();
+  document.getElementById('ev-start').value = timeStr;
+  const [h, m] = timeStr.split(':').map(Number);
+  const endH = String(Math.min(h+1, 23)).padStart(2,'0');
+  document.getElementById('ev-end').value = `${endH}:${String(m).padStart(2,'0')}`;
+  _agendaSelectedDate = dateStr;
+}
+
+function openEditEvent(eventId) {
+  const ev = _agendaEvents.find(e => e.id === eventId);
+  if (!ev) return;
+  _editingEventId = eventId;
+  _evColor = ev.color || '#6366F1';
+
+  document.getElementById('modal-event-title').textContent = 'Editar Evento';
+  document.getElementById('ev-title').value    = ev.title || '';
+  document.getElementById('ev-notes').value    = ev.notes || '';
+  document.getElementById('ev-start').value    = ev.start_time?.slice(0,5) || '07:00';
+  document.getElementById('ev-end').value      = ev.end_time?.slice(0,5) || '08:00';
+  document.getElementById('ev-student').value  = ev.student_id || '';
+  document.getElementById('ev-recurring').value = ev.is_recurring ? 'recurring' : 'single';
+  document.getElementById('ev-edit-delete').style.display = '';
+
+  const sel = document.getElementById('ev-student');
+  sel.innerHTML = '<option value="">Nenhum aluno vinculado</option>' +
+    allStudents.map(s => `<option value="${s.id}" ${s.id === ev.student_id ? 'selected' : ''}>${escHtml(s.name)} ${s.registration_id ? '· '+s.registration_id : ''}</option>`).join('');
+
+  openModal('modal-event');
+}
+
+async function saveEvent() {
+  const title    = document.getElementById('ev-title').value.trim();
+  const start    = document.getElementById('ev-start').value;
+  const end      = document.getElementById('ev-end').value;
+  const studentId = document.getElementById('ev-student').value || null;
+  const recurring = document.getElementById('ev-recurring').value === 'recurring';
+  const notes    = document.getElementById('ev-notes').value.trim();
+
+  if (!title) { toast('Informe um título para o evento'); return; }
+  if (!start) { toast('Informe o horário de início'); return; }
+  if (!currentProf) return;
+
+  const btn = document.getElementById('btn-save-event');
+  btn.disabled = true; btn.textContent = 'Salvando...';
+
+  // Determina data/dia
+  let eventDate = null;
+  let dayOfWeek = null;
+
+  if (recurring) {
+    // Usa o dia da semana selecionado ou hoje
+    const refDate = _agendaSelectedDate ? new Date(_agendaSelectedDate + 'T12:00:00') : new Date();
+    dayOfWeek = refDate.getDay();
+  } else {
+    eventDate = _agendaSelectedDate || new Date().toISOString().split('T')[0];
+  }
+
+  const payload = {
+    professional_id: currentProf.id,
+    student_id:   studentId,
+    title,
+    notes:        notes || null,
+    start_time:   start,
+    end_time:     end || null,
+    event_date:   eventDate,
+    day_of_week:  dayOfWeek,
+    is_recurring: recurring,
+    color:        _evColor || '#6366F1',
+  };
+
+  let error;
+  if (_editingEventId) {
+    ({ error } = await sb.from('schedule_events').update(payload).eq('id', _editingEventId));
+  } else {
+    ({ error } = await sb.from('schedule_events').insert(payload));
+  }
+
+  btn.disabled = false; btn.textContent = 'Salvar';
+
+  if (error) { toast('Erro ao salvar: ' + error.message); return; }
+
+  toast(_editingEventId ? 'Evento atualizado!' : 'Evento criado!');
+  closeModal('modal-event');
+  await loadAgenda();
+}
+
+async function deleteEvent() {
+  if (!_editingEventId) return;
+  if (!confirm('Excluir este evento?')) return;
+  await sb.from('schedule_events').delete().eq('id', _editingEventId);
+  toast('Evento excluído');
+  closeModal('modal-event');
+  await loadAgenda();
+}
+
+async function toggleEventDone(eventId) {
+  const ev = _agendaEvents.find(e => e.id === eventId);
+  if (!ev) return;
+  const done = !ev.completed;
+  await sb.from('schedule_events').update({
+    completed: done,
+    completed_at: done ? new Date().toISOString() : null
+  }).eq('id', eventId);
+  await loadAgenda();
+}
+
+window.agendaWeekNav    = agendaWeekNav;
+window.agendaSelectDay  = agendaSelectDay;
+window.openAddEvent     = openAddEvent;
+window.openAddEventAt   = openAddEventAt;
+window.openEditEvent    = openEditEvent;
+window.saveEvent        = saveEvent;
+window.deleteEvent      = deleteEvent;
+window.toggleEventDone  = toggleEventDone;
+window.setEvColor       = setEvColor;
 
 // Globals
 window.startForm       = startForm;
