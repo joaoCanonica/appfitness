@@ -1,5 +1,18 @@
 /* VITALIS v2 — app.js */
 
+// ── ANTI-PAUSE: mantém o Supabase ativo no plano gratuito
+// Faz uma requisição leve a cada 6 dias para evitar pausa automática
+async function keepSupabaseAlive() {
+  try {
+    await sb.from('professionals').select('id').limit(1);
+    console.log('[Vitalis] Supabase ping OK —', new Date().toLocaleString('pt-BR'));
+  } catch(e) {}
+}
+
+// Roda 1x ao carregar e depois a cada 6 dias
+setTimeout(keepSupabaseAlive, 5000);
+setInterval(keepSupabaseAlive, 6 * 24 * 60 * 60 * 1000);
+
 // ── ESTADO GLOBAL ─────────────────────────────────────────────
 let currentUser    = null;
 let currentProf    = null;
