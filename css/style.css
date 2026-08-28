@@ -2836,3 +2836,7 @@ input[type=range]::-webkit-slider-thumb {
 #agenda-grid { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
 #agenda-days-header { scrollbar-width: none; }
 #agenda-days-header::-webkit-scrollbar { display: none; }
+
+/* ── SEARCH ──────────────────────────────────────────────── */
+.ex-search-row:hover { background: var(--bg-raised); }
+.ex-search-row:active { background: var(--a-dim); }

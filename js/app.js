@@ -2694,6 +2694,144 @@ window.deleteEvent      = deleteEvent;
 window.toggleEventDone  = toggleEventDone;
 window.setEvColor       = setEvColor;
 
+function sendWhatsApp() {
+  if (!currentStudent) return;
+  const phone = currentStudent.phone?.replace(/\D/g,'');
+  if (!phone) { toast('Aluno sem telefone cadastrado'); return; }
+  const msg = `Olá, ${currentStudent.name}! Aqui é ${currentProf?.name || 'seu personal trainer'}. Tudo bem?`;
+  window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+async function sendPDFViaWA() {
+  if (!currentStudent) return;
+  const phone = currentStudent.phone?.replace(/\D/g,'');
+  if (!phone) { toast('Aluno sem telefone cadastrado'); return; }
+
+  // Busca última avaliação do aluno
+  const lastAssess = allAssessments[0];
+  if (!lastAssess) { toast('Nenhuma avaliação para enviar'); return; }
+
+  // Mensagem com resumo
+  const imc  = (+lastAssess.imc).toFixed(1);
+  const tdee = (+lastAssess.tdee).toLocaleString('pt-BR');
+  const msg  = [
+    `Olá, ${currentStudent.name}! 💪`,
+    ``,
+    `Segue o resumo da sua última avaliação:`,
+    `📊 IMC: ${imc} (${lastAssess.imc_categoria})`,
+    `🔥 Gasto calórico: ${tdee} kcal/dia`,
+    `📅 Data: ${new Date(lastAssess.created_at).toLocaleDateString('pt-BR')}`,
+    ``,
+    `Qualquer dúvida, estou à disposição!`,
+    `— ${currentProf?.name || 'Seu Personal'}`,
+  ].join('\n');
+
+  window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  toast('WhatsApp aberto com o resumo!');
+}
+
+function callStudent() {
+  if (!currentStudent?.phone) { toast('Aluno sem telefone cadastrado'); return; }
+  window.location.href = `tel:${currentStudent.phone.replace(/\D/g,'')}`;
+}
+
+window.sendWhatsApp  = sendWhatsApp;
+window.sendPDFViaWA  = sendPDFViaWA;
+window.callStudent   = callStudent;
+
+// ── BUSCA DE EXERCÍCIOS (ExerciseDB via RapidAPI — gratuito) ─
+let _exSearchTimer = null;
+
+async function searchExercises(query) {
+  const muscle = document.getElementById('ex-muscle-filter')?.value || '';
+  const resultsEl = document.getElementById('ex-search-results');
+  if (!resultsEl) return;
+
+  if (!query && !muscle) { resultsEl.style.display = 'none'; return; }
+
+  clearTimeout(_exSearchTimer);
+  _exSearchTimer = setTimeout(async () => {
+    resultsEl.style.display = 'block';
+    resultsEl.innerHTML = '<div style="padding:12px;font-size:12px;color:var(--t3)">Buscando...</div>';
+
+    try {
+      // Usa wger API (gratuita, sem chave)
+      let url = `https://wger.de/api/v2/exercise/search/?term=${encodeURIComponent(query || muscle)}&language=pt&format=json`;
+      if (!query && muscle) {
+        url = `https://wger.de/api/v2/exercise/?format=json&language=2&category=${muscle}&limit=20`;
+      }
+
+      const res  = await fetch(url);
+      const data = await res.json();
+
+      const exercises = data.suggestions || data.results || [];
+
+      if (!exercises.length) {
+        // Fallback: busca na biblioteca local
+        const local = searchLocalExercises(query, muscle);
+        renderExerciseResults(local, resultsEl);
+        return;
+      }
+
+      renderExerciseResults(exercises.map(e => ({
+        name: e.value || e.name || e.translations?.[0]?.name || e.base_translation?.name || '',
+        muscle: muscle || 'Geral'
+      })), resultsEl);
+
+    } catch(err) {
+      // Fallback local se a API falhar
+      const local = searchLocalExercises(query, muscle);
+      renderExerciseResults(local, resultsEl);
+    }
+  }, 400);
+}
+
+function searchLocalExercises(query, muscle) {
+  const lib = [
+    {name:'Supino Reto',muscle:'Peito'},{name:'Supino Inclinado',muscle:'Peito'},{name:'Crucifixo',muscle:'Peito'},
+    {name:'Puxada Frente',muscle:'Costas'},{name:'Remada Curvada',muscle:'Costas'},{name:'Remada Unilateral',muscle:'Costas'},
+    {name:'Agachamento Livre',muscle:'Quadríceps'},{name:'Leg Press',muscle:'Quadríceps'},{name:'Stiff',muscle:'Posterior'},
+    {name:'Mesa Flexora',muscle:'Posterior'},{name:'Desenvolvimento',muscle:'Ombros'},{name:'Elevação Lateral',muscle:'Ombros'},
+    {name:'Rosca Direta',muscle:'Bíceps'},{name:'Rosca Martelo',muscle:'Bíceps'},{name:'Tríceps Corda',muscle:'Tríceps'},
+    {name:'Prancha',muscle:'Core'},{name:'Abdominal Reto',muscle:'Core'},{name:'Panturrilha Em Pé',muscle:'Panturrilha'},
+    {name:'Afundo',muscle:'Glúteos'},{name:'Hip Thrust',muscle:'Glúteos'},{name:'Abdutor',muscle:'Glúteos'},
+  ];
+  return lib.filter(e =>
+    (!query || e.name.toLowerCase().includes(query.toLowerCase())) &&
+    (!muscle || e.muscle.toLowerCase().includes(muscle.toLowerCase()))
+  );
+}
+
+function renderExerciseResults(exercises, container) {
+  if (!exercises.length) {
+    container.innerHTML = '<div style="padding:12px;font-size:12px;color:var(--t3)">Nenhum exercício encontrado</div>';
+    return;
+  }
+  container.innerHTML = exercises.slice(0,15).map(ex => `
+    <div onclick="addExerciseFromSearch('${escHtml(ex.name || ex.value || '')}','${escHtml(ex.muscle || '')}')"
+         style="padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;justify-content:space-between;align-items:center;touch-action:manipulation"
+         class="ex-search-row">
+      <span style="font-size:13px;color:var(--t1);font-weight:500">${escHtml(ex.name || ex.value || '')}</span>
+      <span style="font-size:10px;color:var(--a2);background:var(--a-dim);padding:2px 6px;border-radius:3px">${escHtml(ex.muscle || 'Geral')}</span>
+    </div>`).join('');
+}
+
+function addExerciseFromSearch(name, muscle) {
+  // Adiciona ao dia que está sendo editado atualmente
+  const di = window._currentEditingDay ?? 0;
+  if (currentWorkout?.plan?.[di]) {
+    currentWorkout.plan[di].exercicios.push({ nome: name, series: '3×12', grupo: muscle });
+    openWorkoutEditor();
+    // Foca no campo do exercício adicionado
+  }
+  document.getElementById('ex-search-results').style.display = 'none';
+  document.getElementById('ex-search-input').value = '';
+  toast(`"${name}" adicionado ao treino`);
+}
+
+window.searchExercises      = searchExercises;
+window.addExerciseFromSearch = addExerciseFromSearch;
+
 // Globals
 window.startForm       = startForm;
 window.nextStp         = nextStp;
