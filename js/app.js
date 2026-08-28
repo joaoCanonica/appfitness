@@ -261,6 +261,8 @@ async function loadProfessional() {
     currentProf = data;
   }
 
+  applyBrand(currentProf);
+
   const un = document.getElementById('dash-user-name');
   const an = document.getElementById('dash-academy-name');
   const sp = document.getElementById('settings-profile-val');
@@ -287,6 +289,7 @@ async function checkSchemaHealth() {
 
 async function openProfileEdit() {
   if (!currentProf) return;
+  document.getElementById('mp-brand').value = currentProf?.brand_name || '';
   document.getElementById('mp-name').value    = currentProf.name || '';
   document.getElementById('mp-academy').value = currentProf.academy_name || '';
   document.getElementById('mp-phone').value   = currentProf.phone || '';
@@ -298,6 +301,7 @@ async function openProfileEdit() {
 }
 
 async function saveProfile() {
+  const brand   = document.getElementById('mp-brand').value.trim();
   const name    = document.getElementById('mp-name').value.trim();
   const academy = document.getElementById('mp-academy').value.trim();
   const phone   = document.getElementById('mp-phone').value.trim();
@@ -318,13 +322,21 @@ async function saveProfile() {
   }
 
   const { error } = await sb.from('professionals')
-    .update({ name, academy_name: academy || null, phone: phone || null, logo_url: logoUrl })
+    .update({ 
+      name, 
+      academy_name: academy || null, 
+      phone: phone || null, 
+      logo_url: logoUrl,
+      brand_name: brand || null,
+      secondary_logo_url: logoUrl
+    })
     .eq('id', currentProf.id);
 
   if (error) { toast('Erro ao salvar'); return; }
   currentProf.name         = name;
   currentProf.academy_name = academy;
   currentProf.logo_url     = logoUrl;
+  currentProf.brand_name   = brand || null;
   closeModal('modal-profile');
   await loadProfessional();
   toast('Perfil atualizado');
@@ -467,26 +479,30 @@ async function saveStudent() {
 
   if (window._pendingStudentPhoto) {
     try {
-      const file = window._pendingStudentPhoto;
-      const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase();
-      const studentId = currentStudent?.id || 'new_' + Date.now();
-      const path = `photos/${currentProf.id}/${studentId}.${ext}`;
+      const file  = window._pendingStudentPhoto;
+      const ext   = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/jpeg/,'jpg');
+      const ts    = Date.now();
+      const path  = `photos/${currentProf.id}/${ts}.${ext}`;
 
-      const { data: upData, error: upErr } = await sb.storage
+      // Remove foto antiga se existir
+      if (currentStudent?.photo_url) {
+        const oldPath = currentStudent.photo_url.split('/student-docs/')[1]?.split('?')[0];
+        if (oldPath) await sb.storage.from('student-docs').remove([oldPath]).catch(() => {});
+      }
+
+      const { error: upErr } = await sb.storage
         .from('student-docs')
-        .upload(path, file, { upsert: true, contentType: file.type });
+        .upload(path, file, { upsert: true, contentType: file.type || 'image/jpeg' });
 
       if (upErr) {
-        console.error('[Photo upload error]', upErr);
-        toast('Aviso: foto não enviada — ' + upErr.message);
+        toast('Foto não salva: ' + upErr.message);
+        console.error('[Photo]', upErr);
       } else {
-        const { data: urlData } = sb.storage
-          .from('student-docs')
-          .getPublicUrl(path);
-        photoUrl = urlData.publicUrl + '?t=' + Date.now();
+        const { data: urlData } = sb.storage.from('student-docs').getPublicUrl(path);
+        photoUrl = urlData.publicUrl;
       }
-    } catch(e) {
-      console.error('[Photo error]', e);
+    } catch(photoErr) {
+      console.error('[Photo exception]', photoErr);
     }
     window._pendingStudentPhoto = null;
   }
@@ -550,8 +566,9 @@ async function openStudentDetail(studentId) {
   document.getElementById('detail-name').textContent = student.name;
   const enrollStr = formatEnrollmentDate(student.enrollment_date || student.created_at);
   const contactStr = [student.email, student.phone].filter(Boolean).join(' · ') || 'Sem contato';
+  const regId = student.registration_id ? `<span style="font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--bg-card);border:1px solid var(--line-2);border-radius:4px;padding:2px 6px;color:var(--a2)">${student.registration_id}</span>` : '';
   document.getElementById('detail-meta').innerHTML =
-    `${contactStr}<br><span style="font-size:11px;color:var(--t3)">Matrícula: ${enrollStr}</span>`;
+    `${regId} ${contactStr}<br><span style="font-size:11px;color:var(--t3)">Matrícula: ${enrollStr}</span>`;
   dashNav('ds-student-detail');
   // Sempre recarrega avaliações ao abrir o detalhe — garante dados frescos
   await loadStudentAssessments();
@@ -1005,9 +1022,7 @@ async function loadBrandFromToken() {
     .single();
 
   if (prof) {
-    const bn = document.getElementById('assess-brand-name');
-    if (bn) bn.textContent = prof.academy_name || prof.name || 'Vitalis';
-    if (prof.primary_color) applyPrimaryColor(prof.primary_color);
+    applyBrand(prof);
   }
 
   // Restore any saved draft for this token
@@ -2460,3 +2475,46 @@ window.openProfileEdit = openProfileEdit;
 window.saveProfile     = saveProfile;
 window.updatePrimaryColor = updatePrimaryColor;
 window.toggleThemeDash = toggleThemeDash;
+
+function applyBrand(prof) {
+  if (!prof) return;
+
+  // Nome da marca
+  const brandName = prof.brand_name || prof.academy_name || prof.name || 'Fitness OS';
+  const brandSub  = prof.academy_name && prof.brand_name ? prof.academy_name : 'Personal Trainer';
+
+  ['auth-brand-name','dash-brand-name','assess-brand-name'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = brandName;
+  });
+  ['auth-brand-sub','dash-brand-sub','assess-brand-sub'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = brandSub;
+  });
+
+  // Título da aba do browser
+  document.title = brandName + ' — Fitness OS';
+
+  // Logo
+  if (prof.logo_url) {
+    ['dash-logo-img','assess-logo-img'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.src = prof.logo_url; el.style.display = 'block'; }
+    });
+  }
+
+  // Cor primária
+  if (prof.primary_color) applyPrimaryColor(prof.primary_color);
+
+  // Atualiza meta theme-color
+  const mc = document.getElementById('metaThemeColor');
+  if (mc && prof.primary_color) mc.content = prof.primary_color;
+}
+window.applyBrand = applyBrand;
+
+function setPresetColor(hex) {
+  const cp = document.getElementById('color-picker');
+  if (cp) cp.value = hex;
+  updatePrimaryColor(hex);
+}
+window.setPresetColor = setPresetColor;

@@ -25,8 +25,8 @@
 <div id="view-auth" class="auth-wrap hide">
   <div class="auth-logo">
     <div style="text-align:center;margin-bottom:4px">
-      <div style="font-size:22px;font-weight:800;letter-spacing:-0.03em;color:var(--t1);line-height:1">PRIME HOUSE</div>
-      <div style="font-size:12px;font-weight:700;letter-spacing:0.15em;color:var(--a);text-transform:uppercase">Academia</div>
+      <div style="font-size:22px;font-weight:800;letter-spacing:-0.03em;color:var(--t1);line-height:1" id="auth-brand-name">Fitness OS</div>
+      <div style="font-size:12px;font-weight:700;letter-spacing:0.15em;color:var(--a);text-transform:uppercase" id="auth-brand-sub">Personal Trainer</div>
     </div>
   </div>
 
@@ -87,8 +87,13 @@
   <header class="dash-hdr">
     <div class="dash-hdr-left">
       <div class="logo" style="gap:0;flex-direction:column;align-items:flex-start;line-height:1">
-        <div style="font-size:15px;font-weight:800;letter-spacing:-0.02em;color:var(--t1)">PRIME HOUSE</div>
-        <div style="font-size:9px;font-weight:700;letter-spacing:0.18em;color:var(--a);text-transform:uppercase">Academia</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <img id="dash-logo-img" src="" alt="" style="height:28px;width:auto;object-fit:contain;display:none;border-radius:4px">
+          <div>
+            <div style="font-size:15px;font-weight:800;letter-spacing:-0.02em;color:var(--t1)" id="dash-brand-name">Fitness OS</div>
+            <div style="font-size:9px;font-weight:700;letter-spacing:0.18em;color:var(--a);text-transform:uppercase" id="dash-brand-sub">Personal Trainer</div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="dash-hdr-right">
@@ -339,13 +344,25 @@
         </div>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </div>
-      <div class="settings-row">
-        <div class="settings-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg></div>
-        <div class="settings-info">
-          <div class="settings-lbl">Cor Principal</div>
-          <div class="settings-val">Identidade visual</div>
+      <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px;cursor:default">
+        <div style="display:flex;align-items:center;gap:12px;width:100%">
+          <div class="settings-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg></div>
+          <div class="settings-info">
+            <div class="settings-lbl">Cor do Sistema</div>
+            <div class="settings-val">Personaliza app, PDF e formulário</div>
+          </div>
+          <input type="color" id="color-picker" value="#6366F1" onchange="updatePrimaryColor(this.value)" style="width:32px;height:32px;border-radius:6px;border:none;cursor:pointer;background:none">
         </div>
-        <input type="color" id="color-picker" value="#6366F1" onchange="updatePrimaryColor(this.value)" style="width:28px;height:28px;border-radius:4px;border:none;cursor:pointer;background:none">
+        <div style="display:flex;gap:6px;padding-left:44px;flex-wrap:wrap">
+          <button onclick="setPresetColor('#6366F1')" style="width:24px;height:24px;border-radius:50%;background:#6366F1;border:2px solid transparent;cursor:pointer;transition:transform 0.1s" title="Índigo"></button>
+          <button onclick="setPresetColor('#E87722')" style="width:24px;height:24px;border-radius:50%;background:#E87722;border:2px solid transparent;cursor:pointer" title="Laranja"></button>
+          <button onclick="setPresetColor('#22C55E')" style="width:24px;height:24px;border-radius:50%;background:#22C55E;border:2px solid transparent;cursor:pointer" title="Verde"></button>
+          <button onclick="setPresetColor('#3B82F6')" style="width:24px;height:24px;border-radius:50%;background:#3B82F6;border:2px solid transparent;cursor:pointer" title="Azul"></button>
+          <button onclick="setPresetColor('#EC4899')" style="width:24px;height:24px;border-radius:50%;background:#EC4899;border:2px solid transparent;cursor:pointer" title="Rosa"></button>
+          <button onclick="setPresetColor('#8B5CF6')" style="width:24px;height:24px;border-radius:50%;background:#8B5CF6;border:2px solid transparent;cursor:pointer" title="Roxo"></button>
+          <button onclick="setPresetColor('#14B8A6')" style="width:24px;height:24px;border-radius:50%;background:#14B8A6;border:2px solid transparent;cursor:pointer" title="Teal"></button>
+          <button onclick="setPresetColor('#EF4444')" style="width:24px;height:24px;border-radius:50%;background:#EF4444;border:2px solid transparent;cursor:pointer" title="Vermelho"></button>
+        </div>
       </div>
       <div class="settings-row" onclick="toggleThemeDash()">
         <div class="settings-ico"><svg id="settings-theme-ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></div>
@@ -388,8 +405,13 @@
 
   <header class="hdr" id="assess-header">
     <div class="logo" style="gap:0;flex-direction:column;align-items:flex-start;line-height:1">
-      <div style="font-size:14px;font-weight:800;letter-spacing:-0.02em;color:var(--t1)" id="assess-brand-name">PRIME HOUSE</div>
-      <div style="font-size:8px;font-weight:700;letter-spacing:0.18em;color:var(--a);text-transform:uppercase">Academia</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <img id="assess-logo-img" src="" alt="" style="height:26px;width:auto;object-fit:contain;display:none;border-radius:3px">
+        <div>
+          <div style="font-size:14px;font-weight:800;letter-spacing:-0.02em;color:var(--t1)" id="assess-brand-name">Fitness OS</div>
+          <div style="font-size:8px;font-weight:700;letter-spacing:0.18em;color:var(--a);text-transform:uppercase" id="assess-brand-sub">Personal Trainer</div>
+        </div>
+      </div>
     </div>
     <button class="theme-btn" id="themeBtn" aria-label="Alternar tema">
       <svg id="themeIco" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
@@ -901,6 +923,11 @@
     <div class="modal-title">Perfil Profissional</div>
     <div class="modal-sub">Suas informações aparecem nas avaliações.</div>
     <div class="modal-body">
+      <div class="fld">
+        <label>Nome que aparece no App / PDF</label>
+        <input type="text" id="mp-brand" placeholder="Ex: Studio Silva · João Personal" autocomplete="off">
+        <div style="font-size:11px;color:var(--t3);margin-top:4px">Aparece no cabeçalho do app e no PDF gerado</div>
+      </div>
       <div class="fld"><label>Seu Nome</label><input type="text" id="mp-name" placeholder="Nome completo"></div>
       <div class="fld"><label>Academia / Consultório</label><input type="text" id="mp-academy" placeholder="Nome do seu negócio"></div>
       <div class="fld"><label>Telefone</label><input type="tel" id="mp-phone" placeholder="(00) 00000-0000" inputmode="tel"></div>
