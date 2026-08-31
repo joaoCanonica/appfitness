@@ -62,6 +62,7 @@ const sunSVG  = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
   if (session) {
     currentUser = session.user;
     await loadProfessional();
+    requestNotifPermission();
     await checkSchemaHealth();
     showView('view-dash');
   } else {
@@ -96,6 +97,13 @@ function showView(id) {
       el.classList.toggle('on', v === id);
     }
   });
+  // Reset cores ao voltar para auth — isolamento entre personals
+  if (id === 'view-auth') {
+    ['--a','--a2','--a-dim','--a-mid'].forEach(p =>
+      document.documentElement.style.removeProperty(p)
+    );
+    document.title = 'Fitness App';
+  }
 }
 
 function initTheme() {
@@ -344,12 +352,11 @@ async function saveProfile() {
 
 function applyPrimaryColor(hex) {
   if (!hex || !hex.startsWith('#')) return;
-  document.documentElement.style.setProperty('--a', hex);
-  // Converte hex para rgb para usar nos derivados com transparência
   const r = parseInt(hex.slice(1,3),16);
   const g = parseInt(hex.slice(3,5),16);
   const b = parseInt(hex.slice(5,7),16);
-  document.documentElement.style.setProperty('--a2',   `rgb(${r},${g},${b})`);
+  document.documentElement.style.setProperty('--a',     hex);
+  document.documentElement.style.setProperty('--a2',    `rgb(${Math.min(r+20,255)},${Math.min(g+20,255)},${Math.min(b+20,255)})`);
   document.documentElement.style.setProperty('--a-dim', `rgba(${r},${g},${b},0.10)`);
   document.documentElement.style.setProperty('--a-mid', `rgba(${r},${g},${b},0.18)`);
 }
@@ -1862,7 +1869,7 @@ async function generatePDF(data, prof) {
     }
     doc.setFontSize(20);
     doc.setFont('helvetica','bold');
-    doc.text(prof?.academy_name || 'Prime House', textX, 36);
+    doc.text(prof?.brand_name || prof?.academy_name || prof?.name || 'Fitness App', textX, 36);
     doc.setFontSize(9);
     doc.setTextColor(ar, ag, ab);
     doc.text('ACADEMIA · AVALIAÇÃO FITNESS', textX, 52);
@@ -2069,7 +2076,7 @@ async function generatePDF(data, prof) {
       doc.rect(0, pH - 30, pW, 2, 'F');
       doc.setFontSize(7.5);
       doc.setTextColor(180,180,180);
-      const footLeft = prof?.academy_name || 'Prime House Academia';
+      const footLeft = prof?.brand_name || prof?.academy_name || prof?.name || 'Fitness App';
       const footRight = `Página ${p} de ${totalPages}`;
       doc.text(footLeft, m, pH - 10);
       doc.text(footRight, pW - m, pH - 10, { align:'right' });
@@ -2468,6 +2475,65 @@ async function loadAgenda() {
   renderAgendaHeader(dates);
   renderAgendaGrid(dates);
   updateAgendaWeekLabel(dates);
+  startNotifChecker();
+}
+
+let _notifInterval = null;
+
+function startNotifChecker() {
+  clearInterval(_notifInterval);
+  checkUpcomingEvents();
+  _notifInterval = setInterval(checkUpcomingEvents, 60000);
+}
+
+function checkUpcomingEvents() {
+  if (!_agendaEvents.length) return;
+  const now      = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const nowMins  = now.getHours() * 60 + now.getMinutes();
+  const dow      = now.getDay();
+
+  const upcoming = _agendaEvents.filter(ev => {
+    if (ev.completed) return false;
+    const isToday = ev.is_recurring ? ev.day_of_week === dow : ev.event_date === todayStr;
+    if (!isToday) return false;
+    const [h, m] = (ev.start_time || '00:00').split(':').map(Number);
+    const diff   = (h * 60 + m) - nowMins;
+    return diff >= 0 && diff <= 20;
+  });
+
+  const block = document.getElementById('agenda-upcoming');
+  const text  = document.getElementById('agenda-upcoming-text');
+  if (!block || !text) return;
+
+  if (upcoming.length) {
+    const ev    = upcoming[0];
+    const [h,m] = (ev.start_time||'').split(':').map(Number);
+    const diff  = (h * 60 + m) - nowMins;
+    const name  = ev.students?.name?.split(' ')[0] || '';
+    const msg   = diff <= 0
+      ? `🔔 Agora: ${ev.title}${name ? ' — ' + name : ''}`
+      : `⏰ Em ${diff} min: ${ev.title}${name ? ' — ' + name : ''} às ${(ev.start_time||'').slice(0,5)}`;
+    text.textContent = msg;
+    block.style.display = '';
+
+    // Notificação nativa do browser
+    if (diff > 0 && diff <= 16 && 'Notification' in window && Notification.permission === 'granted') {
+      new Notification(`⏰ Em ${diff} minutos`, {
+        body: `${ev.title}${name ? ' — ' + name : ''} às ${(ev.start_time||'').slice(0,5)}`,
+        icon: '/icons/icon-192.png',
+        tag:  ev.id,
+      });
+    }
+  } else {
+    block.style.display = 'none';
+  }
+}
+
+function requestNotifPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
 }
 
 function updateAgendaWeekLabel(dates) {
@@ -2499,15 +2565,16 @@ function renderAgendaGrid(dates) {
 
   let html = '';
   HOURS.forEach(hour => {
+    const label = hour === 24 ? '00:00' : `${String(hour).padStart(2,'0')}:00`;
     html += `<div style="display:flex;gap:8px;margin-bottom:2px">`;
-    html += `<div style="width:36px;flex-shrink:0;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--t3);padding-top:10px;text-align:right">${String(hour).padStart(2,'0')}:00</div>`;
+    html += `<div style="width:36px;flex-shrink:0;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--t3);padding-top:10px;text-align:right">${label}</div>`;
     html += `<div style="flex:1;display:grid;grid-template-columns:repeat(7,1fr);gap:2px">`;
 
     dates.forEach(d => {
       const dateStr = d.toISOString().split('T')[0];
       const dow     = d.getDay();
       const isToday = d.toDateString() === new Date().toDateString();
-      const timeStr = `${String(hour).padStart(2,'0')}:00`;
+      const timeStr = hour === 24 ? '00:00' : `${String(hour).padStart(2,'0')}:00`;
 
       // Eventos desta célula
       const cellEvents = _agendaEvents.filter(ev => {
@@ -2560,14 +2627,18 @@ function setEvColor(btn, color) {
 
 function openAddEvent() {
   _editingEventId = null;
+  _evCheckin = false;
   document.getElementById('modal-event-title').textContent = 'Novo Evento';
   document.getElementById('ev-title').value   = '';
+  document.getElementById('ev-date').value = _agendaSelectedDate || new Date().toISOString().split('T')[0];
   document.getElementById('ev-notes').value   = '';
   document.getElementById('ev-start').value   = '07:00';
   document.getElementById('ev-end').value     = '08:00';
   document.getElementById('ev-student').value = '';
   document.getElementById('ev-recurring').value = 'single';
   document.getElementById('ev-edit-delete').style.display = 'none';
+  document.getElementById('ev-checkin-wrap').style.display = 'none';
+  document.getElementById('ev-checkin-tgl').classList.remove('on');
   _evColor = 'var(--a)';
   openModal('modal-event');
 
@@ -2591,6 +2662,8 @@ function openEditEvent(eventId) {
   if (!ev) return;
   _editingEventId = eventId;
   _evColor = ev.color || '#6366F1';
+  _evCheckin = ev.completed || false;
+  document.getElementById('ev-date').value = ev.event_date || new Date().toISOString().split('T')[0];
 
   document.getElementById('modal-event-title').textContent = 'Editar Evento';
   document.getElementById('ev-title').value    = ev.title || '';
@@ -2600,6 +2673,8 @@ function openEditEvent(eventId) {
   document.getElementById('ev-student').value  = ev.student_id || '';
   document.getElementById('ev-recurring').value = ev.is_recurring ? 'recurring' : 'single';
   document.getElementById('ev-edit-delete').style.display = '';
+  document.getElementById('ev-checkin-wrap').style.display = '';
+  document.getElementById('ev-checkin-tgl').classList.toggle('on', _evCheckin);
 
   const sel = document.getElementById('ev-student');
   sel.innerHTML = '<option value="">Nenhum aluno vinculado</option>' +
@@ -2632,7 +2707,7 @@ async function saveEvent() {
     const refDate = _agendaSelectedDate ? new Date(_agendaSelectedDate + 'T12:00:00') : new Date();
     dayOfWeek = refDate.getDay();
   } else {
-    eventDate = _agendaSelectedDate || new Date().toISOString().split('T')[0];
+    eventDate = document.getElementById('ev-date')?.value || _agendaSelectedDate || new Date().toISOString().split('T')[0];
   }
 
   const payload = {
@@ -2646,6 +2721,8 @@ async function saveEvent() {
     day_of_week:  dayOfWeek,
     is_recurring: recurring,
     color:        _evColor || '#6366F1',
+    completed:    _evCheckin,
+    completed_at: _evCheckin ? new Date().toISOString() : null,
   };
 
   let error;
@@ -2896,6 +2973,15 @@ function applyBrand(prof) {
     const el = document.getElementById(id);
     if (el) el.textContent = brandSub;
   });
+
+  // Atualiza também o hero da avaliação e o título
+  const heroName = document.getElementById('hero-brand-name');
+  const heroSub  = document.getElementById('hero-brand-sub');
+  if (heroName) heroName.textContent = brandName;
+  if (heroSub)  heroSub.textContent  = brandSub;
+  document.title = brandName;
+  const metaTitle = document.getElementById('metaAppTitle');
+  if (metaTitle) metaTitle.content = brandName;
 
   // Título da aba do browser
   document.title = brandName + ' — Fitness OS';

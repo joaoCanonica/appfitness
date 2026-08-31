@@ -6,10 +6,10 @@
 <meta name="theme-color" content="#0A0A0A" id="metaThemeColor">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
-<meta name="apple-mobile-web-app-title" content="Prime House">
+<meta name="apple-mobile-web-app-title" content="Fitness App" id="metaAppTitle">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Prime House — Fitness OS</title>
+<title>Fitness App</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -26,7 +26,7 @@
   <div class="auth-logo">
     <div style="text-align:center;margin-bottom:4px">
       <div style="font-size:22px;font-weight:800;letter-spacing:-0.03em;color:var(--t1);line-height:1" id="auth-brand-name">Fitness OS</div>
-      <div style="font-size:12px;font-weight:700;letter-spacing:0.15em;color:var(--a);text-transform:uppercase" id="auth-brand-sub">Personal Trainer</div>
+      <div style="font-size:12px;font-weight:700;letter-spacing:0.15em;color:#6366F1;text-transform:uppercase">Personal Trainer</div>
     </div>
   </div>
 
@@ -442,6 +442,10 @@
       </div>
     </div>
 
+    <div id="agenda-upcoming" style="display:none;margin:8px 20px 0;padding:10px 14px;border-radius:var(--r8);background:var(--am-dim);border:1px solid rgba(245,158,11,0.25);cursor:pointer" onclick="switchTab('agenda')">
+      <div style="font-size:13px;font-weight:600;color:var(--amber)" id="agenda-upcoming-text">⏰ Próximo evento em breve</div>
+    </div>
+
     <!-- Dias da semana -->
     <div id="agenda-days-header" style="display:flex;gap:4px;padding:12px 20px 0;overflow-x:auto"></div>
 
@@ -495,8 +499,8 @@
     <section class="scr on" id="s-hero">
       <div class="hero">
         <div style="text-align:center;margin-bottom:32px">
-          <div style="font-size:36px;font-weight:800;letter-spacing:-0.03em;color:var(--t1);line-height:1">PRIME HOUSE</div>
-          <div style="font-size:13px;font-weight:700;letter-spacing:0.2em;color:var(--a);text-transform:uppercase;margin-top:4px">Academia</div>
+          <div style="font-size:36px;font-weight:800;letter-spacing:-0.03em;color:var(--t1);line-height:1" id="hero-brand-name">Fitness App</div>
+          <div style="font-size:13px;font-weight:700;letter-spacing:0.2em;color:var(--a);text-transform:uppercase;margin-top:4px" id="hero-brand-sub">Personal Trainer</div>
         </div>
         <div class="hero-eyebrow"><span class="hero-eyebrow-dot"></span>Avaliação Fitness Personalizada</div>
         <h1 style="font-size:clamp(28px,8vw,44px)">Avalie seu<br>corpo com <em>precisão.</em></h1>
@@ -1057,7 +1061,8 @@
     <div class="modal-drag"></div>
     <div class="modal-title" id="modal-event-title">Novo Evento</div>
     <div class="modal-body">
-      <div class="fld"><label>Título / Descrição</label><input type="text" id="ev-title" placeholder="Ex: Treino — João, Avaliação, Reunião"></div>
+      <div class="fld"><label>Título / Descrição</label><input type="text" id="ev-title" placeholder="Ex: Treino — João, Avaliação, Reunião" autocomplete="off"></div>
+      <div class="fld"><label>Data do Evento</label><input type="date" id="ev-date"></div>
       <div class="frow">
         <div class="fld"><label>Horário início</label><input type="time" id="ev-start" value="07:00"></div>
         <div class="fld"><label>Horário fim</label><input type="time" id="ev-end" value="08:00"></div>
@@ -1084,6 +1089,12 @@
         </div>
       </div>
       <div class="fld"><label>Observações</label><textarea id="ev-notes" placeholder="Observações do evento..." style="height:60px"></textarea></div>
+      <div id="ev-checkin-wrap" style="display:none;padding:4px 0 8px;border-top:1px solid var(--line);margin-top:8px">
+        <div class="tgl-row" onclick="tgl('ev-checkin-tgl');_evCheckin=document.getElementById('ev-checkin-tgl').classList.contains('on')">
+          <span class="tgl-lbl">✓ Marcar como realizado</span>
+          <div class="tgl" id="ev-checkin-tgl"></div>
+        </div>
+      </div>
       <div id="ev-edit-delete" style="display:none;margin-top:8px">
         <button onclick="deleteEvent()" style="width:100%;padding:11px;border-radius:var(--r8);border:1px solid rgba(248,113,113,0.3);background:var(--r-dim);color:var(--red);font-size:13px;font-weight:600;cursor:pointer">Excluir Evento</button>
       </div>
