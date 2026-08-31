@@ -1,11 +1,11 @@
 {
-  "name": "Prime House — Fitness OS",
-  "short_name": "Prime House",
-  "description": "Sistema de avaliação fitness da Prime House Academia",
+  "name": "Fitness App",
+  "short_name": "Fitness App",
+  "description": "Sistema de avaliação e gestão fitness para personal trainers",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0A0A0A",
-  "theme_color": "#E87722",
+  "theme_color": "#0A0A0A",
   "orientation": "portrait-primary",
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },

@@ -356,7 +356,7 @@ function applyPrimaryColor(hex) {
   const g = parseInt(hex.slice(3,5),16);
   const b = parseInt(hex.slice(5,7),16);
   document.documentElement.style.setProperty('--a',     hex);
-  document.documentElement.style.setProperty('--a2',    `rgb(${Math.min(r+20,255)},${Math.min(g+20,255)},${Math.min(b+20,255)})`);
+  document.documentElement.style.setProperty('--a2',    `rgb(${Math.min(r+25,255)},${Math.min(g+25,255)},${Math.min(b+25,255)})`);
   document.documentElement.style.setProperty('--a-dim', `rgba(${r},${g},${b},0.10)`);
   document.documentElement.style.setProperty('--a-mid', `rgba(${r},${g},${b},0.18)`);
 }
@@ -1026,7 +1026,7 @@ async function loadBrandFromToken() {
   window._linkStudentId = link.student_id;
 
   const { data: prof } = await sb.from('professionals')
-    .select('name, academy_name, primary_color')
+    .select('name, academy_name, brand_name, primary_color, logo_url, phone')
     .eq('id', link.professional_id)
     .single();
 
@@ -1869,7 +1869,7 @@ async function generatePDF(data, prof) {
     }
     doc.setFontSize(20);
     doc.setFont('helvetica','bold');
-    doc.text(prof?.brand_name || prof?.academy_name || prof?.name || 'Fitness App', textX, 36);
+    doc.text(prof?.brand_name || prof?.academy_name || prof?.name || '', textX, 36);
     doc.setFontSize(9);
     doc.setTextColor(ar, ag, ab);
     doc.text('ACADEMIA · AVALIAÇÃO FITNESS', textX, 52);
@@ -2076,7 +2076,7 @@ async function generatePDF(data, prof) {
       doc.rect(0, pH - 30, pW, 2, 'F');
       doc.setFontSize(7.5);
       doc.setTextColor(180,180,180);
-      const footLeft = prof?.brand_name || prof?.academy_name || prof?.name || 'Fitness App';
+      const footLeft = prof?.brand_name || prof?.academy_name || prof?.name || '';
       const footRight = `Página ${p} de ${totalPages}`;
       doc.text(footLeft, m, pH - 10);
       doc.text(footRight, pW - m, pH - 10, { align:'right' });
@@ -2960,46 +2960,40 @@ window.toggleThemeDash = toggleThemeDash;
 
 function applyBrand(prof) {
   if (!prof) return;
+  const firstName = prof.name ? prof.name.split(' ')[0] : '';
+  const brandName = prof.brand_name || prof.academy_name || firstName || 'Personal Trainer';
+  const brandSub  = (prof.brand_name && prof.academy_name) ? prof.academy_name
+    : (prof.brand_name && prof.name ? prof.name : 'Personal Trainer');
 
-  // Nome da marca
-  const brandName = prof.brand_name || prof.academy_name || prof.name || 'Fitness OS';
-  const brandSub  = prof.academy_name && prof.brand_name ? prof.academy_name : 'Personal Trainer';
-
-  ['auth-brand-name','dash-brand-name','assess-brand-name'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = brandName;
+  ['dash-brand-name','assess-brand-name','hero-brand-name'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = brandName;
   });
-  ['auth-brand-sub','dash-brand-sub','assess-brand-sub'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = brandSub;
+  ['dash-brand-sub','assess-brand-sub','hero-brand-sub'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = brandSub;
   });
 
-  // Atualiza também o hero da avaliação e o título
-  const heroName = document.getElementById('hero-brand-name');
-  const heroSub  = document.getElementById('hero-brand-sub');
-  if (heroName) heroName.textContent = brandName;
-  if (heroSub)  heroSub.textContent  = brandSub;
   document.title = brandName;
-  const metaTitle = document.getElementById('metaAppTitle');
-  if (metaTitle) metaTitle.content = brandName;
+  const metaAppTitle = document.getElementById('metaAppTitle');
+  if (metaAppTitle) metaAppTitle.content = brandName;
+  const footer = document.getElementById('app-footer-version');
+  if (footer) footer.textContent = brandName;
 
-  // Título da aba do browser
-  document.title = brandName + ' — Fitness OS';
-
-  // Logo
   if (prof.logo_url) {
-    ['dash-logo-img','assess-logo-img'].forEach(id => {
+    ['dash-logo-img','assess-logo-img','hero-logo-img'].forEach(id => {
       const el = document.getElementById(id);
       if (el) { el.src = prof.logo_url; el.style.display = 'block'; }
     });
+  } else {
+    ['dash-logo-img','assess-logo-img','hero-logo-img'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.src = ''; el.style.display = 'none'; }
+    });
   }
-
-  // Cor primária
-  if (prof.primary_color) applyPrimaryColor(prof.primary_color);
-
-  // Atualiza meta theme-color
-  const mc = document.getElementById('metaThemeColor');
-  if (mc && prof.primary_color) mc.content = prof.primary_color;
+  if (prof.primary_color) {
+    applyPrimaryColor(prof.primary_color);
+    const mc = document.getElementById('metaThemeColor');
+    if (mc) mc.content = prof.primary_color;
+  }
 }
 window.applyBrand = applyBrand;
 
