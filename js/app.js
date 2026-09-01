@@ -275,7 +275,7 @@ async function loadProfessional() {
   const an = document.getElementById('dash-academy-name');
   const sp = document.getElementById('settings-profile-val');
   if (un) un.textContent = currentProf.name;
-  if (an) an.textContent = currentProf.academy_name || 'Vitalis';
+  if (an) an.textContent = currentProf.brand_name || currentProf.academy_name || currentProf.name || 'App';
   if (sp) sp.textContent = currentProf.name + (currentProf.academy_name ? ' · ' + currentProf.academy_name : '');
   if (currentProf.primary_color) applyPrimaryColor(currentProf.primary_color);
   const cp = document.getElementById('color-picker');
@@ -2105,7 +2105,7 @@ function shareWA() {
   const lesoes = (fd.lesoes||[]).length > 0 ? fd.lesoes.join(', ') : 'Nenhuma';
 
   const msg = [
-    `*Vitalis — Avaliação Fitness*`,
+    `*Avaliação Fitness*`,
     ``,
     `👤 *${fd.nome}*`,
     `📅 ${new Date().toLocaleDateString('pt-BR')}`,
@@ -2132,7 +2132,7 @@ function shareWA() {
     `Estresse: ${fd.stress}`,
     `Lesões: ${lesoes}`,
     ``,
-    `_Gerado pelo Vitalis Fitness OS_`,
+    `_Gerado pelo app do seu profissional_`,
   ].join('\n');
 
   window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
@@ -2443,7 +2443,7 @@ let _editingEventId   = null;
 let _evColor          = '#6366F1';
 let _agendaSelectedDate = null;
 
-const HOURS = Array.from({length: 18}, (_, i) => i + 5); // 05:00 às 22:00
+const HOURS = Array.from({length: 20}, (_, i) => i + 5); // 05:00 às 00:00
 const DAYS_PT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
 function getWeekDates(offset) {
