@@ -114,6 +114,17 @@ function initTheme() {
   } catch(e) { applyTheme('dark'); }
   const btn = document.getElementById('themeBtn');
   if (btn) btn.addEventListener('click', toggleThemeAssess);
+
+  // Restaura e-mail salvo no campo de login
+  try {
+    const savedEmail = localStorage.getItem('fitness_saved_email');
+    if (savedEmail) {
+      const emailInput = document.getElementById('login-email');
+      const rememberCb = document.getElementById('remember-me');
+      if (emailInput) emailInput.value = savedEmail;
+      if (rememberCb)  rememberCb.checked = true;
+    }
+  } catch(e) {}
 }
 
 function applyTheme(t) {
@@ -149,6 +160,12 @@ async function doLogin() {
   const errEl = document.getElementById('login-err');
   const btn   = document.getElementById('btn-login');
 
+  // Restaura e-mail salvo
+  const savedEmail = localStorage.getItem('fitness_saved_email');
+  if (savedEmail && !email) {
+    document.getElementById('login-email').value = savedEmail;
+  }
+
   if (!email || !pass) { showErr(errEl, 'Preencha e-mail e senha'); return; }
   if (pass.length < 6) { showErr(errEl, 'Senha deve ter pelo menos 6 caracteres'); return; }
   errEl.classList.remove('on');
@@ -172,6 +189,13 @@ async function doLogin() {
   }
 
   if (data.session) {
+    // Salva e-mail se checkbox marcado
+    const remember = document.getElementById('remember-me');
+    if (remember?.checked) {
+      localStorage.setItem('fitness_saved_email', email);
+    } else {
+      localStorage.removeItem('fitness_saved_email');
+    }
     currentUser = data.session.user;
     await loadProfessional();
     showView('view-dash');
@@ -232,8 +256,19 @@ async function doRegister() {
 
 async function doLogout() {
   await sb.auth.signOut();
-  allStudents = []; allAssessments = [];
-  currentStudent = null; currentAssessment = null;
+  // Limpa todos os dados da sessão
+  try { sessionStorage.clear(); } catch(e) {}
+  allStudents    = [];
+  allAssessments = [];
+  currentStudent = null;
+  currentAssessment = null;
+  currentUser    = null;
+  currentProf    = null;
+  // Reset visual
+  ['--a','--a2','--a-dim','--a-mid'].forEach(p =>
+    document.documentElement.style.removeProperty(p)
+  );
+  document.title = 'Fitness App';
 }
 
 function showErr(el, msg) {
